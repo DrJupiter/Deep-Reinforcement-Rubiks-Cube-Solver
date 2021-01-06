@@ -1,6 +1,6 @@
 import pycuber as pc
 import numpy as np
-actions = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
+ACTIONS = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
 FACES = ["L", "U", "F", "D", "R", "B"]
 
 ONE_HOT_DICT = {"red":    np.array([1,0,0,0,0,0]), 
@@ -37,7 +37,6 @@ def one_hot_code(cube):
     one_hot = []
     for face in FACES:
         side = cube.get_face(face)
-        print(side)
         for lines in side:
             for tile in lines:
                 one_hot.append(ONE_HOT_DICT[tile.colour])
@@ -61,20 +60,20 @@ print(len(one_hot_code(SOLVED_CUBE)))
 
 
 
-actions_num = [0,1,2,3,4,5,6,7,8,9,10,11]
+ACTIONS_NUM = [0,1,2,3,4,5,6,7,8,9,10,11]
 
 def cube_shuffle(n):
 
     act_list = ["_","_","_","_"]
-
+    
     for _ in range(n):
         new_action = False
         while new_action == False:
             
             new_action = True    
 
-            act = random.randint(0, len(actions)-1) 
-            inverse_act = actions_num[act-6]
+            act = random.randint(0, len(ACTIONS)-1) 
+            inverse_act = ACTIONS_NUM[act-6]
 
             if inverse_act == act_list[-1]:
                 new_action = False
