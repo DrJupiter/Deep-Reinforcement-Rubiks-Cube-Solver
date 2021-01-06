@@ -67,7 +67,8 @@ def cube_shuffle(n):
         while new_action == False:
             new_action = True    
 
-            act = random.randint(0, len(actions)-1) 
+            act = np.random.randint(0, len(ACTIONS)-1) 
+            #print("act = ", act)
             inverse_act = ACTIONS_NUM[act-6]
 
             if inverse_act == act_list[-1]:
