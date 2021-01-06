@@ -1,6 +1,14 @@
 import pycuber as pc
 import numpy as np
 actions = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
+FACES = ["L", "U", "F", "D", "R", "B"]
+
+ONE_HOT_DICT = {"red":    np.array([1,0,0,0,0,0]), 
+                "green":  np.array([0,1,0,0,0,0]), 
+                "blue":   np.array([0,0,1,0,0,0]), 
+                "yellow": np.array([0,0,0,1,0,0]),
+                "white":  np.array([0,0,0,0,1,0]),
+                "orange": np.array([0,0,0,0,0,1])}
 
 SOLVED_CUBE = pc.Cube()
 
@@ -18,30 +26,21 @@ def r(s):
 
 
 def test_all_faces():
-    faces = ["L", "U", "F", "D", "R", "B"]
-    for face in faces:
+    for face in FACES:
         print(SOLVED_CUBE.get_face(face))
 
 def test_single_tile():
-    faces = ["L", "U", "F", "D", "R", "B"]
-
-    print(SOLVED_CUBE.get_face(faces[3])[0][0].colour)
+    print(SOLVED_CUBE.get_face(FACES[3])[0][0].colour)
 
 def one_hot_code(cube):
-    faces = ["L", "U", "F", "D", "R", "B"]
-    one_hot_dict = {"red":    np.array([1,0,0,0,0,0]), 
-                    "green":  np.array([0,1,0,0,0,0]), 
-                    "blue":   np.array([0,0,1,0,0,0]), 
-                    "yellow": np.array([0,0,0,1,0,0]),
-                    "white":  np.array([0,0,0,0,1,0]),
-                    "orange": np.array([0,0,0,0,0,1])}
+
     one_hot = []
-    for face in faces:
+    for face in FACES:
         side = cube.get_face(face)
         print(side)
         for lines in side:
             for tile in lines:
-                one_hot.append(one_hot_dict[tile.colour])
+                one_hot.append(ONE_HOT_DICT[tile.colour])
                 #one_hot.append(tile)
 
     middle = np.array([4,13,22,31,40,49])
@@ -57,17 +56,12 @@ def test_target_middle(cube):
         print(side)
 
 print(len(one_hot_code(SOLVED_CUBE)))
-#test_target_middle(SOLVED_CUBE)
-
-#SOLVED_CUBE('U')
 
 
 
 
-#actions = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
+
 actions_num = [0,1,2,3,4,5,6,7,8,9,10,11]
-#act_short = ["U", "L", "F", "D", "R", "B"]
-act_short_num = [0,1,2,3,4,5]
 
 def cube_shuffle(n):
 
