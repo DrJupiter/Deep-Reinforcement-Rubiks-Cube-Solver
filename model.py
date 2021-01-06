@@ -146,7 +146,7 @@ class ReplayBuffer():
                 # Gen reverse actions (to undo find optimal moves for solver)
                 reverse_actions.append(ACTIONS[action_num-6])
 
-            cube_loc = cube
+            self.buffer[buffer_location][1] = cube # cube_loc = cube
 
         return (cube_loc, reverse_actions)
 
