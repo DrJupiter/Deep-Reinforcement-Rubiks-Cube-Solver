@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 from copy import deepcopy
 from collections import deque
+import numpy as np
+import pycuber as pc
 
 from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 
-import numpy as np
 # Input will be 288 due to 6*8*6 = 288, SIDES*(ALL_TILES-MIDDLE_TILES)*(LEN_COLOR_VEC)
 
 # Output will be of length 12, since there are 12 actions.
@@ -82,36 +83,58 @@ class Agent():
     # updating the target network
     # 
     def learn(self, replay_time, replay_chance, replay_shuffle_range, n_steps, epoch_time):
+        last_action = None
+
+        # s, a, s', r pairs
 
         if replay_time > 0:
             None
         else:
+           # We need to generate a random state here 
+           # We also need to one-hot-code the state before we pass it as input
+            cube = None 
+            input = one_hot_code(state)
+
             if np.random.random() >= 0.5:
-                if self.epsilon_greedy():
-                    None
+                if self.epsilon_greedy(self.epsilon):
+                    action = self.actions[np.random.randint(0, len(self.actions))]
+                else:
+                    action = np.argmax(self.online(input))
             else:
-                if self.sticky_action():
-                    None
-            
-             
+                if self.sticky_action(self.sticky) and last_action is not None:
+                    action = last_action
+                else:
+                    action = np.argmax(self.online(input))
+
+
+
+class Experience():
+
+    __init__(s, r):
+        self.states = np.array()
+        self.states.push(s)
+        self.rewards = deque(maxlen=4)
+
 
         
 
 #class Generator():
 
 class ReplayBuffer():
-    def __init__(self, capacity, generator):
-        self.buffer = deque(maxlen = capacity)    
-        self.generator = generator
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen = capacity) 
+        self.capacity = capacity   
+        #self.generator = generator
 
-    def generate_moves(move_depth):
-        actions_num = cube_shuffle(move_depth)
-        self.buffer.push([actions, None])            
+    def generate_moves(self, move_depth):
+        actions_nums = cube_shuffle(move_depth)
+        self.buffer.append([actions_nums, None]) 
+                   
 
     # Genereates a cube based on a random move, 
     def generate_cube(self):
-        buffer_location = random.randint(0, capacity)
-        trajectory_actions_nums = self.buffer[buffer_localtion][0]
+        buffer_location = np.random.randint(0, self.capacity)
+        trajectory_actions_nums = self.buffer[buffer_location][0]
         cube_loc = self.buffer[buffer_location][1]
 
         if cube_loc == None:
@@ -119,7 +142,7 @@ class ReplayBuffer():
             reverse_actions = []
             for action_num in trajectory_actions_nums:
                 # Gen cube
-                cube(ACTIONS(action_num))
+                cube(ACTIONS[action_num])
                 # Gen reverse actions (to undo find optimal moves for solver)
                 reverse_actions.append(ACTIONS[action_num-6])
 
@@ -130,7 +153,8 @@ class ReplayBuffer():
 
     def new_buffer(self, max_move_depth=10):
         for _ in range(self.capacity):
-            self.buffer.append(generate_moves(np.random.randint(1, max_move_depth)))
+            #self.buffer.append(self.generate_moves(np.random.randint(1, max_move_depth)))
+            self.generate_moves(np.random.randint(1, max_move_depth))
 
     def __len__(self):
         return len(self.buffer)
