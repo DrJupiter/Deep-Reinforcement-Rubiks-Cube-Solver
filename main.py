@@ -1,7 +1,7 @@
 import pycuber as pc
 import numpy as np
-ACTIONS = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
-FACES = ["L", "U", "F", "D", "R", "B"]
+ACTIONS = np.array(["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"])
+FACES = np.array(["L", "U", "F", "D", "R", "B"])
 
 ONE_HOT_DICT = {"red":    np.array([1,0,0,0,0,0]), 
                 "green":  np.array([0,1,0,0,0,0]), 
@@ -33,7 +33,6 @@ def test_single_tile():
     print(SOLVED_CUBE.get_face(FACES[3])[0][0].colour)
 
 def one_hot_code(cube):
-
     one_hot = []
     for face in FACES:
         side = cube.get_face(face)
@@ -54,16 +53,13 @@ def test_target_middle(cube):
         side[1][1] = "white"
         print(side)
 
-print(len(one_hot_code(SOLVED_CUBE)))
-
-
-
+# print(len(one_hot_code(SOLVED_CUBE)))
 
 
 ACTIONS_NUM = [0,1,2,3,4,5,6,7,8,9,10,11]
 
 def cube_shuffle(n):
-    err = 0
+    #err = 0
     act_list = ["_","_","_","_"]
 
     for _ in range(n):
@@ -87,5 +83,7 @@ def cube_shuffle(n):
             if new_action == True:
                 act_list.append(act)
 
+    return np.array(act_list[4:]) #, err
 
-    return act_list[4:] #, err
+# def find_state(move_list, val_of_wanted_state):
+    
