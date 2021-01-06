@@ -1,6 +1,6 @@
 import pycuber as pc
 import numpy as np
-actions = ["U", "L", "F", "R", "B", "D","U'", "L'", "F'", "R'", "B'", "D'"]
+actions = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
 
 SOLVED_CUBE = pc.Cube()
 
@@ -64,3 +64,43 @@ print(len(one_hot_code(SOLVED_CUBE)))
 
 
 
+#actions = ["U", "L", "F", "D", "R", "B",    "U'", "L'", "F'", "D'", "R'", "B'"]
+actions_num = [0,1,2,3,4,5,6,7,8,9,10,11]
+#act_short = ["U", "L", "F", "D", "R", "B"]
+act_short_num = [0,1,2,3,4,5]
+
+def cube_shuffle(n):
+
+    act_list = ["_","_","_","_"]
+
+    for _ in range(n):
+        new_action = False
+        while new_action == False:
+            
+            new_action = True    
+
+            act = random.randint(0, len(actions)-1) 
+            inverse_act = actions_num[act-6]
+
+            if inverse_act == act_list[-1]:
+                new_action = False
+
+            elif act == act_list[-1] and act == act_list[-2]:
+                new_action = False
+
+            elif act > 5:
+                act2 = act-6
+                if (inverse_act == act_list[-1] or inverse_act == act_list[-2] or inverse_act == act_list[-3] or inverse_act == act_list[-4]) and (act_short_num[act2-3] != act_list[-1] or act_short_num[act2-3] != act_list[-2] or act_short_num[act2-3] != act_list[-3] or act_short_num[act2-3] != act_list[-4]):
+                    new_action = False
+
+            elif act <= 5:
+                if (inverse_act == act_list[-1] or inverse_act == act_list[-2] or inverse_act == act_list[-3] or inverse_act == act_list[-4]) and (act_short_num[act-3] != act_list[-1] or act_short_num[act-3] != act_list[-2] or act_short_num[act-3] != act_list[-3] or act_short_num[act-3] != act_list[-4]):
+                    new_action = False
+
+
+            if new_action == True:
+                act_list.append(act)
+
+    #print(act_list[4:])
+
+    return act_list[4:]
