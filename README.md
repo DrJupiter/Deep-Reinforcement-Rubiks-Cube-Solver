@@ -51,15 +51,15 @@ Throughout the training process we will slowly introduce more and more instances
 
 # TODO
 
-- Tweak representation of Rubik's cube
-  - Make the colours vectors
-  - Expand upon the shuffle function, such that it cannot shuffle back upon itself
-  - Make it save the shuffels for use in experience replay
+- Tweak representation of Rubik's cube (DONE)
+  - Make the colours vectors (DONE)
+  - Expand upon the shuffle function, such that it cannot shuffle back upon itself (DONE)
+  - Make it save the shuffels for use in experience replay (DONE)
 - Make NN's
-  - Online and Target
+  - Online and Target 
   - Make the NN's update at the appropriate times
-    - Online = 
-    - Target =
+    - Online = 5
+    - Target = 1000
     - 
 - Implement experience replay based on shuffles
 - 
