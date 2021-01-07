@@ -16,15 +16,15 @@ from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 #Loss_fn = torch.nn.MSELoss(reduction='mean')
 
       
-def mlp(sizes, activation=nn.PReLU(init=1), output_activation=nn.Identity()):
+def mlp(sizes, activation=nn.PReLU(init=1), output_activation=nn.Identity()): # PReLU -> ReLU   # Remove identity activation function
     # Build a feedforward neural network.
     layers = []
     for j in range(len(sizes)-1):
         act = activation if j < len(sizes)-2 else output_activation
         layers += [nn.Linear(sizes[j], sizes[j+1]), act]
     return nn.Sequential(*layers)
-class Model(nn.Module):
 
+class Model(nn.Module):
     def __init__(self, initial ,other, action_num):
         super(Model, self).__init__()
         self.sizes = initial + other + action_num
@@ -116,10 +116,9 @@ class Agent():
             elif n_set_initial:
                 n_step_buffer.set_initial(cube.copy())
 
-
 class NStepBuffer():
 
-    __init__(capacity, s=None):
+    def __init__(self, capacity, s=None):
         self.initial_state = s
         self.capacity = capacity
         self.rewards = deque(maxlen=capacity)
@@ -184,9 +183,7 @@ class ReplayBuffer():
 
 
 
-    
-
-
+np.random.random()
 
 online = Model([288], [4,4,4], [12])
 
@@ -244,6 +241,15 @@ def update_weights(self):
         target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
         
     self.target_model.set_weights(target_weights)
+
+
+
+
+
+
+
+
+
 
 
 
