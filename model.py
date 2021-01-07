@@ -35,11 +35,11 @@ class Model(nn.Module):
 
 
 class Agent():
-    def __init__(self, online, actions,target=None, epsilon=0.9, sticky = 0.0):
+    def __init__(self, online, actions,target=None, epsilon=0.9, sticky = -1.0):
         
         self.online = online 
         self.target = deepcopy(online) if target is not None else target
-        # We don't need to calculate the target network's parameters
+        # We don't need to calculate the target network's parameter's gradient
         for param in self.target.parameters():
             param.requires_grad = False
         self.actions = actions
@@ -72,7 +72,7 @@ class Agent():
     # Update target Network
     def update_target_net(self):
         self.target.load_state_dict(self.online.state_dict()) 
-        # We don't need to calculate the target network's parameters
+        # We don't need to calculate the target network's parameter's gradient
         for param in self.target.parameters():
             param.requires_grad = False
 
@@ -86,6 +86,10 @@ class Agent():
         last_action = None
 
         # s, a, s', r pairs
+        n_step_buffer = NStepBuffer(n_steps)
+        n_set_initial = True
+
+
 
         if replay_time > 0:
             None
@@ -105,18 +109,39 @@ class Agent():
                     action = last_action
                 else:
                     action = np.argmax(self.online(input))
+            cube(action)
+            if n_step_buffer.full():
+                None # But here we would update the weights and set n_set_initial to true.
+
+            elif n_set_initial:
+                n_step_buffer.set_initial(cube.copy())
+
+
+class NStepBuffer():
+
+    __init__(capacity, s=None):
+        self.initial_state = s
+        self.capacity = capacity
+        self.rewards = deque(maxlen=capacity)
+    
+    def full(self):
+        if len(self.rewards) == self.capacity:
+            return True
+        else:
+            return False
+
+    def add_reward(self, reward):
+        self.rewards.append(reward)
+    
+    def clear(self):
+        self.initial_state = None
+        self.rewards.clear()
+    
+    def set_initial(self, state):
+        self.initial_state = state
 
 
 
-class Experience():
-
-    __init__(s, r):
-        self.states = np.array()
-        self.states.push(s)
-        self.rewards = deque(maxlen=4)
-
-
-        
 
 #class Generator():
 
@@ -130,6 +155,10 @@ class ReplayBuffer():
         actions_nums = cube_shuffle(move_depth)
         self.buffer.append([actions_nums, None]) 
                    
+    def new_full_buffer(self, max_move_depth=10):
+        for _ in range(self.capacity):
+            #self.buffer.append(self.generate_moves(np.random.randint(1, max_move_depth)))
+            self.generate_moves(np.random.randint(1, max_move_depth))
 
     # Genereates a cube based on a random move, 
     def generate_cube(self):
@@ -146,15 +175,9 @@ class ReplayBuffer():
                 # Gen reverse actions (to undo find optimal moves for solver)
                 reverse_actions.append(ACTIONS[action_num-6])
 
-            self.buffer[buffer_location][1] = cube # cube_loc = cube
+            self.buffer[buffer_location][1] = cube 
 
         return (cube_loc, reverse_actions)
-
-
-    def new_buffer(self, max_move_depth=10):
-        for _ in range(self.capacity):
-            #self.buffer.append(self.generate_moves(np.random.randint(1, max_move_depth)))
-            self.generate_moves(np.random.randint(1, max_move_depth))
 
     def __len__(self):
         return len(self.buffer)
