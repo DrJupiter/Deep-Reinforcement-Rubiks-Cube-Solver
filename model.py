@@ -392,7 +392,7 @@ class Test():
     def solver(self, test_times=100):
         for i in range(test_times):
             self.solve()
-        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth"
+        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {win_counter}"
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
