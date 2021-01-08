@@ -4,12 +4,12 @@ ACTIONS = ["U", "L", "F", "D", "R", "B",
                     "U'", "L'", "F'", "D'", "R'", "B'"]
 FACES = np.array(["L", "U", "F", "D", "R", "B"])
 
-ONE_HOT_DICT = {"red":    np.array([1, 0, 0, 0, 0, 0]),
-                "green":  np.array([0, 1, 0, 0, 0, 0]),
-                "blue":   np.array([0, 0, 1, 0, 0, 0]),
-                "yellow": np.array([0, 0, 0, 1, 0, 0]),
-                "white":  np.array([0, 0, 0, 0, 1, 0]),
-                "orange": np.array([0, 0, 0, 0, 0, 1])}
+ONE_HOT_DICT = {"red":    np.array([1., 0., 0., 0., 0., 0.], dtype=np.float32),
+                "green":  np.array([0., 1., 0., 0., 0., 0.], dtype=np.float32),
+                "blue":   np.array([0., 0., 1., 0., 0., 0.], dtype=np.float32),
+                "yellow": np.array([0., 0., 0., 1., 0., 0.], dtype=np.float32),
+                "white":  np.array([0., 0., 0., 0., 1., 0.], dtype=np.float32),
+                "orange": np.array([0., 0., 0., 0., 0., 1.], dtype=np.float32)}
 
 SOLVED_CUBE = pc.Cube()
 

@@ -8,6 +8,8 @@ import pycuber as pc
 
 from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 
+from enum import Enum, unique
+
 # Input will be 288 due to 6*8*6 = 288, SIDES*(ALL_TILES-MIDDLE_TILES)*(LEN_COLOR_VEC)
 
 # Output will be of length 12, since there are 12 actions.
@@ -16,8 +18,9 @@ from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Loss_fn = torch.nn.MSELoss(reduction='mean')
 
-
 # PReLU -> ReLU   # Remove identity activation function
+
+
 def mlp(sizes, activation=nn.PReLU(init=1), output_activation=nn.Identity()):
     # Build a feedforward neural network.
     layers = []
@@ -39,11 +42,17 @@ class Model(nn.Module):
 # Make better epislon system with decay
 
 
+@unique
+class Network(Enum):
+    Online = 0,
+    Target = 1,
+
+
 class Agent():
     def __init__(self, online, actions, target=None, gamma=0.4, alpha=1e-08, epsilon=0.9, sticky=-1.0):
 
         self.online = online
-        self.target = deepcopy(online) if target is not None else target
+        self.target = deepcopy(online) if target is None else target
         # We don't need to calculate the target network's parameter's gradient
         for param in self.target.parameters():
             param.requires_grad = False
@@ -53,18 +62,91 @@ class Agent():
         self.gamma = gamma
         self.alpha = alpha
 
+    def get_val(self, input, network, index):
+        if network is Network.Online:
+            return self.online(input)[index]
+        else:
+            return self.target(input)[index]
+
     def epsilon_greedy(epsilon):
         if np.random.random() <= epsilon:
             return True
         else:
             return False
 
-    def sticky_action(sticky):
+    def get_epsilon_act(self):
+        return np.random.randint(0, len(self.actions))
+
+    def get_epsilon_act_val(self, input, network):
+        if network is Network.Online:
+            num = self.get_epsilon_act()
+            return (ACTIONS[num], self.online(input)[num])
+
+    def sticky_act(sticky):
         if np.random.random() <= sticky:
             return True
         else:
             return False
 
+    # Looks at function... "Ah yes, we have reached the pinacle of coding"
+#    def get_sticky_act(self, last_action):
+#        return last_action
+#
+#    def get_sticky_act_val(self, last_action, input, network):
+#        if network is Network.Online:
+#            return (last_action, self.online(input)[last_action])
+#        else:
+#            return (last_action, self.target(input)[last_action])
+
+
+#    def get_act_val(self, input, last_action, network):
+#        if np.random.random() >= 0.5:
+#            if self.epsilon_greedy(self.epsilon):
+#                return self.get_epsilon_act_val(input, network)
+#            else:
+#                return self.get_best_act_val(input, network)
+#        else:
+#            if self.sticky_action(self.sticky) and last_action is not None:
+#                return self.get_sticky_act_val(last_action, input, network)
+#            else:
+#                return self.get_best_act_val(input, network)
+
+
+    def get_best_act(self, input, network):
+        if network is Network.Online:
+            return np.argmax(self.online(input))
+        else:
+            return np.argmax(self.target(input))
+
+    def get_best_act_val(self, input, network):
+
+        if network is Network.Online:
+            q_array = self.online(input)
+        else:
+            q_array = self.target(input)
+
+        act_num = 0
+        act_value = q_array[act_num]
+
+        for key, value in enumerate(q_array):
+            if value > act_value:
+                act_num = key
+                act_value = value
+
+        return (act_num, act_value)
+
+    def get_act_val(self, input, network):
+        if self.epsilon_greedy(self.epsilon):
+            return self.get_epsilon_act_val(input, network)
+        else:
+            return self.get_best_act_val(input, network)
+
+    # TODO
+    # which action to take based on sticky and greedy
+    # n-steps accumulator,
+    #   - a buffer, which we then sum
+    # updating the target network
+    #
     def experience_reward(self, suggested, correct):
         if suggested == correct:
             return 2
@@ -77,46 +159,6 @@ class Agent():
         else:
             return 0.4
 
-    # Update target Network
-
-    def update_target_net(self):
-        self.target.load_state_dict(self.online.state_dict())
-        # We don't need to calculate the target network's parameter's gradient
-        for param in self.target.parameters():
-            param.requires_grad = False
-
-    def get_action_value(self, input, last_action):
-        if np.random.random() >= 0.5:
-            if self.epsilon_greedy(self.epsilon):
-                act_num = np.random.randint(0, len(self.actions))
-                return (self.actions[act_num], self.online(input)[act_num])
-            else:
-                return self.get_best_action_value(input)
-        else:
-            if self.sticky_action(self.sticky) and last_action is not None:
-                return (last_action, self.online(input)[self.actions.index(last_action)])
-            else:
-                return self.get_best_action_value(input)
-
-    def get_best_action_value(self, input):
-        q_array = self.online(input)
-        act_num = 0
-        act_value = q_array[act_num]
-
-        for key, value in enumerate(q_array):
-            if value > act_value:
-                act_num = key
-                act_value = value
-
-        return (self.actions[act_num], act_value)
-
-    # TODO
-    # which action to take based on sticky and greedy
-    # n-steps accumulator,
-    #   - a buffer, which we then sum
-    # updating the target network
-    #
-
     def n_tpd_iter(self, N, reward_vec, q_n, q_t):
         q_diff_gamma = self.gamma**N * q_n - q_t
         N_TPD = 0
@@ -124,12 +166,28 @@ class Agent():
             N_TPD += self.gamma**x * reward_vec[x] + q_diff_gamma
         return N_TPD
 
+    def update_online(self, loss):
+        self.online.network.zero_grad()
+
+        loss.backward()
+
+        for param in online.parameters():
+            grad = param.grad
+
+            param.data.sub_(-loss*grad*self.alpha)
+
+    def update_target_net(self):
+        self.target.load_state_dict(self.online.state_dict())
+        # We don't need to calculate the target network's parameter's gradient
+        for param in self.target.parameters():
+            param.requires_grad = False
+
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10):
         generator = Generator()
 
         for _ in range(epochs):
 
-            last_action = None
+            #            last_action = None
             time = 0
             # s, a, s', r pairs
 
@@ -137,36 +195,48 @@ class Agent():
             memory.new_full_buffer(replay_shuffle_range)
 
             while time < epoch_time:
-
+                # REPLAY
                 if replay_time > 0 or np.random.random() >= replay_chance:
 
+                    # Get random cube and the reverse of the actions that led to it
                     cube, reverse_actions = memory.generate_random_cube()
-                    input = one_hot_code(cube)
-                    
-                    for i in range(len(reverse_actions)): 
-                        action, action_val_q_t = self.get_best_action_value(input)
-                        action_val_q_n = self.target(input)[ACTIONS.index(action)] 
+                    depth = len(reverse_actions)
+
+                    loss = np.zeros(depth)
+                    for i in range(depth):
+
+                        # Get the state og the c
+                        input = torch.from_numpy(one_hot_code(cube)) #. grad = true
                         
-                        reward = self.experience_reward(action, reverse_actions[10-i])
-                        
-                        # stemmer for vi laver alt dette her til en funktion
-                        n_tpd = self.n_tpd_iter(1, reward, action_val_q_n, action_val_q_t) 
 
-                        # update online
-                        self.online.network.zero_grad()
+                        # find new best act and the corresponding act_val og online N
+                        act, act_val_q_online = self.get_best_act_val(input, Network.Online)
+                        correct_act = reverse_actions[depth-i-1]
 
-                        n_tpd.backward()
+                        # find act_val og target N according to best_act of online
+                        # act_val_q_target = self.target(
+                        #    input)[ACTIONS.index(action)]
+                        act_val_q_target = self.get_val(input, Network.Target, act)
 
-                        for param in online.parameters():
-                            grad = param.grad
+                        # Calculate reward based on if correct action = reverse action
+                        reward = self.experience_reward(
+                            ACTIONS[act], correct_act)
 
-                            param.data.sub_(-n_tpd*grad*self.alpha)
-                        
+                        # update cube according to optimal action (reverse action)
+                        cube(correct_act)
+
+                        # Calculate loss based on TD and reward
+                        # self.n_tpd_iter(1, reward, act_val_q_target, act_val_q_online)
+                        loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
+
+                        # Times are changing
                         replay_time -= 1
                         time += 1
 
-                
+                    # Update online weights based on loss (n_tpd)
+                    self.update_online(torch.mean(torch.from_numpy(loss)))
 
+                # NORMAL
                 else:
                     # We need to generate a random state here
                     # We also need to one-hot-code the state before we pass it as input
@@ -174,45 +244,80 @@ class Agent():
                     cube = generator.generate_cube(depth)
 
                     # use _ if we are going to give a relative reward for early or late completion
-                    for _ in range(depth):
-                        input = one_hot_code(cube)
+                    acc = 0
+                    while acc < depth:
 
-                        last_action, q_t = self.get_action_value(input, last_action)
+                        input = torch.from_numpy(one_hot_code(cube))
 
-                        reward_vector = np.zeros(shape=(n_steps))
+                        # TODO: REMOVE LAST ACTION
+                        act, act_val_q_online = self.get_act_val(
+                            input, Network.Online)
+
+                        # Do action and add 1 to the accumulator
+                        cube(act)
+                        acc += 1
+
+                        # Create reward vector
+                        reward_vector = np.zeros(n_steps)
+
+                        reward_vector[0] = self.normal_reward(cube)
+
+                        if not (cube != SOLVED_CUBE):
+                            act_val_q_target = self.get_val(
+                                input, Network.Target, self.get_best_act(input, Network.Online))
+                            n_tpd = self.n_tpd_iter(
+                                1, reward_vector, act_val_q_target, act_val_q_online)
+                            self.update_online(n_tpd)
+                        else:
+                            None
 
                         for i in range(1, n_steps-1):
-                            reward_vector[i] = self.normal_reward(cube(last_action))
-                            time += 1
-                            if cube != SOLVED_CUBE:
-                                last_action, _ = self.get_action_value(one_hot_code(cube), last_action)
+                            # Select action
+                            if self.epsilon_greedy():
+                                act = self.get_epsilon_act()
+                                # TODO: self.update_epsilon()
                             else:
+                                act = self.get_best_act(
+                                    torch.from_numpy(one_hot_code(cube)), Network.Online)
+
+                            # Do action and add 1 to the accumulator
+                            cube(ACTIONS[act])
+                            acc += 1
+
+                            # Perscribe reward
+                            reward_vector[i] = self.normal_reward(cube)
+
+                            # If Cube is solved stop prematurely
+                            # and update the weights
+                            if not (cube != SOLVED_CUBE):
+                                input = torch.from_numpy(one_hot_code(cube))
+                                act_val_q_target = self.get_val(
+                                    input, Network.Target, self.get_best_act(input, Network.Online))
+                                n_tpd = self.n_tpd_iter(
+                                    i, reward_vector, act_val_q_target, act_val_q_online)
+                                self.update_online(n_tpd)
                                 break
+
                             # TODO: if cube is solved then stop
+                        else:
+                            input = torch.from_numpy(one_hot_code(cube))
+                            act_val_q_target = self.get_val(
+                                input, Network.Target, self.get_best_act(input, Network.Online))
 
-                        # last_action is the last action we would have taken in the sequence, so the action, which takes us to state n.
+                            n_tpd = self.n_tpd_iter(
+                                n_steps, reward_vector, act_val_q_target, act_val_q_online)
 
-                        # Calculate the temporal difference for n steps
-                        n_tpd = self.n_tpd_iter(n_steps, reward_vector, q_n, q_t)
-
-                        # update online
-                        self.online.network.zero_grad()
-
-                        n_tpd.backward()
-
-                        for param in online.parameters():
-                            grad = param.grad
-
-                            param.data.sub_(-n_tpd*grad*self.alpha)
-            
+                            self.update_online(n_tpd)
+                            continue
+                        break
+                    time += acc
             self.update_target_net()
 
 
-
-
 class Generator():
-
     def generate_cube(self, move_depth):
+
+        # get cube and define as cube
         cube = pc.Cube()
         # actions_nums = cube_shuffle(move_depth)
 
@@ -239,7 +344,8 @@ class ReplayBuffer():
             self.generate_moves(np.random.randint(1, max_move_depth+1))
 
     # Genereates a cube based on a random move,
-    def generate_random_cube(self):  # when unscrabeling, it should be done in the reverse order
+    # when unscrabeling, it should be done in the reverse order
+    def generate_random_cube(self):
         buffer_location = np.random.randint(0, self.capacity)
         trajectory_actions_nums = self.buffer[buffer_location][1]
 
@@ -262,17 +368,17 @@ class ReplayBuffer():
 
 
 class Test():
-    def __init__(self, move_depth):
-        self.online = online
+    def __init__(self, move_depth, network):
+        self.network = network
         self.move_depth = move_depth
         self.win_counter = 0
         self.generator = Generator()
 
     def get_action(self):
-        return np.argmax(self.online(input))
+        return np.argmax(self.network(input))
 
     def solve(self):
-        cube = self.generator.generate_cube()
+        cube = self.generator.generate_cube(self.move_depth)
         for num in range(self.move_depth):
             cube(self.get_action())
 
@@ -280,14 +386,23 @@ class Test():
                 None
             else:
                 self.wincounter += 1
+                break
 
     def solver(self, test_times=100):
         for i in range(test_times):
-            solve()
-        return self.win_counter
+            self.solve()
+        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth"
 
 
 online = Model([288], [4, 4, 4], [12])
+agent = Agent(online, ACTIONS)
+agent.learn(replay_time=100, replay_shuffle_range=10,
+            replay_chance=0.0, n_steps=4, epoch_time=100, epochs=2)
+test = Test(3, agent.online)
+print(test.solver(100))
+
+
+exit(0)
 
 # print(list(online.named_parameters()))
 with torch.no_grad():
@@ -311,7 +426,6 @@ input2 = torch.randn(288, requires_grad=True)
 
 # for param in online.named_parameters():
 #    print(param)
-
 
 
 exit(0)
@@ -352,8 +466,6 @@ for param in online.parameters():
 #    print(param.data)
 #    print(f"This is the grad {grad} \n This is the param: {param}")
     param.data.sub_(-loss*grad*alpha)
-
-
 
 
 def test_convergence(online, target, input, input2, alpha):
