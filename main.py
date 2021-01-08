@@ -1,7 +1,6 @@
 import pycuber as pc
 import numpy as np
-ACTIONS = ["U", "L", "F", "D", "R", "B",
-                    "U'", "L'", "F'", "D'", "R'", "B'"]
+ACTIONS = ["U", "L", "F", "D", "R", "B", "U'", "L'", "F'", "D'", "R'", "B'"]
 FACES = np.array(["L", "U", "F", "D", "R", "B"])
 
 ONE_HOT_DICT = {"red":    np.array([1., 0., 0., 0., 0., 0.], dtype=np.float32),
