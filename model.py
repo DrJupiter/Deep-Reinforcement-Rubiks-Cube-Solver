@@ -389,30 +389,46 @@ class Test():
                 self.win_counter += 1
                 break
 
-    def solver(self, test_times=100):
-        for i in range(test_times):
+    def solver(self, number_of_tests=100):
+        for i in range(number_of_tests):
             self.solve()
-        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {self.win_counter}"
+        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 #device = torch.device('cpu')
 print(device)
 
+
+param = torch.load('./initially_good')
+
 online = Model([288], [144, 72, 36, 18], [12]).to(device)
+
+online.load_state_dict(param)
+online.eval()
+
+
+number_of_tests = 5000
+test1 = Test(3, online, device)
+print(test1.solver(number_of_tests))
+#
+#if test.win_counter/test_times >= 0.16:
+#    torch.save(online.state_dict(), "./initially_good")
+#    print("Found one")
+#
 
 agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
 cube = pc.Cube()
-cube("R")
+cube("R R U")
 input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
-agent.learn(replay_time=70_000, replay_shuffle_range=2, replay_chance=0.2, n_steps=7, epoch_time=10_000, epochs=10)
-test = Test(2, agent.online, agent.device)
+agent.learn(replay_time=70_000, replay_shuffle_range=3, replay_chance=0.2, n_steps=7, epoch_time=10_000, epochs=10)
+test = Test(3, agent.online, agent.device)
 
 after = agent.online(input)
 
 print(f"before\n{before} vs after\n{after}")
-print(test.solver(5000))
+print(test.solver(number_of_tests))
 
 
 
