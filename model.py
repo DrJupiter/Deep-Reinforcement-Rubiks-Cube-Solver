@@ -406,7 +406,7 @@ cube = pc.Cube()
 cube("R")
 input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
-agent.learn(replay_time=20_000, replay_shuffle_range=2, replay_chance=0.2, n_steps=7, epoch_time=1000, epochs=25)
+agent.learn(replay_time=70_000, replay_shuffle_range=2, replay_chance=0.2, n_steps=7, epoch_time=10_000, epochs=10)
 test = Test(2, agent.online, agent.device)
 
 after = agent.online(input)
