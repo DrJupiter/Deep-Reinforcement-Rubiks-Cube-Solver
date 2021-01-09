@@ -166,10 +166,10 @@ class Agent():
             N_TPD += self.gamma**x * reward_vec[x] + q_diff_gamma
         return N_TPD
 
-    def update_online(self, loss):
+    def update_online(self, loss, output):
         self.online.network.zero_grad()
 
-        loss.backward()
+        output.backward()
 
         for param in online.parameters():
             grad = param.grad
@@ -235,7 +235,7 @@ class Agent():
                         time += 1
 
                     # Update online weights based on loss (n_tpd)
-                    self.update_online(torch.mean(loss))
+                    self.update_online(torch.mean(loss), act_val_q_online)
 
                 # NORMAL
                 else:
@@ -268,7 +268,7 @@ class Agent():
                                 input, Network.Target, self.get_best_act(input, Network.Online))
                             n_tpd = self.n_tpd_iter(
                                 1, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd)
+                            self.update_online(n_tpd, act_val_q_online)
                             break
                         else:
                             None
@@ -296,7 +296,7 @@ class Agent():
                                     input, Network.Target, self.get_best_act(input, Network.Online))
                                 n_tpd = self.n_tpd_iter(
                                     i, reward_vector, act_val_q_target, act_val_q_online)
-                                self.update_online(n_tpd)
+                                self.update_online(n_tpd, act_val_q_online)
                                 break
 
                             # TODO: if cube is solved then stop
@@ -307,7 +307,7 @@ class Agent():
 
                             n_tpd = self.n_tpd_iter(
                                 n_steps, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd)
+                            self.update_online(n_tpd, act_val_q_online)
                             continue
                         break
                     time += acc
@@ -392,7 +392,7 @@ class Test():
     def solver(self, test_times=100):
         for i in range(test_times):
             self.solve()
-        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {win_counter}"
+        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {self.win_counter}"
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -401,12 +401,13 @@ print(device)
 
 online = Model([288], [144, 72, 36, 18], [12]).to(device)
 
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-07, device=device)
 cube = pc.Cube()
 cube("R")
 input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
-agent.learn(replay_time=9000, replay_shuffle_range=1, replay_chance=0.0, n_steps=4, epoch_time=1000, epochs=10)
+
+agent.learn(replay_time=20_000, replay_shuffle_range=1, replay_chance=0.2, n_steps=4, epoch_time=9_000, epochs=10)
 test = Test(1, agent.online, agent.device)
 
 after = agent.online(input)
