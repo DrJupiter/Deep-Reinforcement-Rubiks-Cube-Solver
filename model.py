@@ -170,10 +170,10 @@ class Agent():
             N_TPD += self.gamma**x * reward_vec[x] + q_diff_gamma
         return N_TPD
 
-    def update_online(self, loss):
+    def update_online(self, loss, output):
         self.online.network.zero_grad()
 
-        loss.backward()
+        output.backward()
 
         for param in online.parameters():
             grad = param.grad
@@ -243,7 +243,7 @@ class Agent():
                         time += 1
 
                     # Update online weights based on loss (n_tpd)
-                    self.update_online(torch.mean(loss))
+                    self.update_online(torch.mean(loss), act_val_q_online)
 
                 # NORMAL
                 else:
@@ -278,7 +278,7 @@ class Agent():
                                 input, Network.Target, self.get_best_act(input, Network.Online))
                             n_tpd = self.n_tpd_iter(
                                 1, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd)
+                            self.update_online(n_tpd, act_val_q_online)
                             break
                         else:
                             None
@@ -308,7 +308,7 @@ class Agent():
                                     input, Network.Target, self.get_best_act(input, Network.Online))
                                 n_tpd = self.n_tpd_iter(
                                     i, reward_vector, act_val_q_target, act_val_q_online)
-                                self.update_online(n_tpd)
+                                self.update_online(n_tpd, act_val_q_online)
                                 break
 
                             # TODO: if cube is solved then stop
@@ -320,7 +320,7 @@ class Agent():
 
                             n_tpd = self.n_tpd_iter(
                                 n_steps, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd)
+                            self.update_online(n_tpd, act_val_q_online)
                             continue
                         break
                     time += acc
