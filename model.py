@@ -392,7 +392,7 @@ class Test():
     def solver(self, test_times=100):
         for i in range(test_times):
             self.solve()
-        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {win_counter}"
+        return f"{(self.win_counter/test_times) * 100}% of test-cubes solved over {test_times} tests at {self.move_depth} depth, wins = {self.win_counter}"
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -406,8 +406,8 @@ cube = pc.Cube()
 cube("R")
 input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
-agent.learn(replay_time=9000, replay_shuffle_range=1, replay_chance=0.0, n_steps=4, epoch_time=1000, epochs=10)
-test = Test(1, agent.online, agent.device)
+agent.learn(replay_time=20_000, replay_shuffle_range=2, replay_chance=0.2, n_steps=7, epoch_time=1000, epochs=25)
+test = Test(2, agent.online, agent.device)
 
 after = agent.online(input)
 
