@@ -94,27 +94,27 @@ class Agent():
             return False
 
     # Looks at function... "Ah yes, we have reached the pinacle of coding"
-#    def get_sticky_act(self, last_action):
-#        return last_action
-#
-#    def get_sticky_act_val(self, last_action, input, network):
-#        if network is Network.Online:
-#            return (last_action, self.online(input)[last_action])
-#        else:
-#            return (last_action, self.target(input)[last_action])
+    #    def get_sticky_act(self, last_action):
+    #        return last_action
+    #
+    #    def get_sticky_act_val(self, last_action, input, network):
+    #        if network is Network.Online:
+    #            return (last_action, self.online(input)[last_action])
+    #        else:
+    #            return (last_action, self.target(input)[last_action])
 
 
-#    def get_act_val(self, input, last_action, network):
-#        if np.random.random() >= 0.5:
-#            if self.epsilon_greedy(self.epsilon):
-#                return self.get_epsilon_act_val(input, network)
-#            else:
-#                return self.get_best_act_val(input, network)
-#        else:
-#            if self.sticky_action(self.sticky) and last_action is not None:
-#                return self.get_sticky_act_val(last_action, input, network)
-#            else:
-#                return self.get_best_act_val(input, network)
+    #    def get_act_val(self, input, last_action, network):
+    #        if np.random.random() >= 0.5:
+    #            if self.epsilon_greedy(self.epsilon):
+    #                return self.get_epsilon_act_val(input, network)
+    #            else:
+    #                return self.get_best_act_val(input, network)
+    #        else:
+    #            if self.sticky_action(self.sticky) and last_action is not None:
+    #                return self.get_sticky_act_val(last_action, input, network)
+    #            else:
+    #                return self.get_best_act_val(input, network)
 
     def get_best_act(self, input, network):
         if network is Network.Online:
@@ -153,13 +153,13 @@ class Agent():
     #
     def experience_reward(self, suggested, correct):
         if suggested == correct:
-            return 7
+            return 5
         else:
-            return -20
+            return -50
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
-            return -5
+            return -1
         else:
             return 10
 
@@ -173,7 +173,7 @@ class Agent():
     def update_online(self, loss, output):
         self.online.network.zero_grad()
 
-        output.backward()
+        output.backward(output)
 
         for param in online.parameters():
             grad = param.grad
@@ -206,7 +206,7 @@ class Agent():
                     # Get random cube and the reverse of the actions that led to it
                     cube, reverse_actions = memory.generate_random_cube()
                     depth = len(reverse_actions)
-
+                    print(reverse_actions)
                     loss = torch.zeros(depth)
                     for i in range(depth):
 
@@ -218,7 +218,7 @@ class Agent():
                         act, act_val_q_online = self.get_best_act_val(
                             input, Network.Online)
                         correct_act = reverse_actions[depth-i-1]
-
+                        print(correct_act, reverse_actions[depth-i-1])
                         # find act_val og target N according to best_act of online
                         # act_val_q_target = self.target(
                         #    input)[ACTIONS.index(action)]
@@ -328,7 +328,9 @@ class Agent():
             epochs_trained += 1
             #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
             print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
-            print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
+            if epochs_trained % 5 == 0: 
+                print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
+                print(test.solver_with_info(100))
 
 
 class Generator():
@@ -391,7 +393,7 @@ class Test():
         self.move_depth = move_depth
         self.win_counter = 0
         self.generator = Generator()
-
+        
         self.win_act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -418,6 +420,7 @@ class Test():
     def solve_with_info(self):
         cube = self.generator.generate_cube(self.move_depth)
         trajectory = []
+        
         for i in range(self.move_depth):
             action = self.get_action(torch.from_numpy(
                 one_hot_code(cube)).to(self.device))
@@ -430,17 +433,19 @@ class Test():
                 None
             else:
                 self.win_counter += 1
+                print(trajectory)
                 for act in trajectory:
                     # print(ACTIONS.index(act))
                     self.win_act_occ_list[ACTIONS.index(act)] += 1
                 break
 
     def solver_with_info(self, number_of_tests=100):
+        self.win_counter = 0
+        self.win_act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         for _ in range(number_of_tests):
             self.solve_with_info()
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
-
-
 
 
 
@@ -452,12 +457,13 @@ import time
 start_time = time.perf_counter()
 ######################################################################################################################################################################################
 # 
+"""
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 #
 
 while True:
-    online = Model([288], [144, 144, 72, 72, 36, 36, 36], [12]).to(device)
+    online = Model([288], [144, 144, 72, 72, 36, 36], [12]).to(device)
 
     number_of_tests = 1000
 
@@ -471,21 +477,23 @@ while True:
         break
 
 exit(0)
-
+"""
 ####################
 
 # choose and print optimal device
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
-# Load model
-param = torch.load('./initially_good_2moves')
-
 # Initialize model
-online = Model([288], [288, 288, 144, 144, 72, 72, 36, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
+online = Model([288], [288, 144, 144, 72, 72, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
+
+# load model
+param = torch.load('./layer_2___')
+online.load_state_dict(param)
+online.eval()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-04, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -498,20 +506,20 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(2, agent.online, agent.device)
+test = Test(3, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
-#print(test.solver_with_info(1000))
+print(test.solver_with_info(1000))
 
 pre_learn_time = time.perf_counter()
 print(f"test time = {pre_learn_time - pre_test_time}")
 
-exit(0)
+#exit(0)
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=60_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=5, epoch_time=1_000, epochs=20)
+agent.learn(replay_time=100_000, replay_shuffle_range=3, replay_chance=0.0, n_steps=5, epoch_time=1, epochs=1)
 
 post_learn_time = time.perf_counter()
 
@@ -529,14 +537,14 @@ done_time = time.perf_counter()
 print(f"learn time = {post_learn_time-pre_learn_time}")
 print(f"total time {done_time}")
 
-torch.save(agent.online.state_dict(), "./layer_2___")
+torch.save(agent.online.state_dict(), "./layer_2___2paths")
 
 exit(0)
 
 
 
 
-
+# layer_2___2paths
 
 
 
