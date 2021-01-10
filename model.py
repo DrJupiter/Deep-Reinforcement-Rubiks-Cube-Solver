@@ -153,9 +153,9 @@ class Agent():
     #
     def experience_reward(self, suggested, correct):
         if suggested == correct:
-            return 5
+            return 2
         else:
-            return -30
+            return -60
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -524,7 +524,7 @@ online.load_state_dict(param)
 online.eval() #online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-05, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -537,12 +537,12 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(2, agent.online, agent.device)
+test = Test(4, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
-print(test.solver_with_info(1000))
+#print(test.solver_with_info(1000))
 
 #exit(0)
 
@@ -551,7 +551,7 @@ print(f"test time = {pre_learn_time - pre_test_time}")
 
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=1_000_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
+agent.learn(replay_time=1_000_000, replay_shuffle_range=4, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
 
 post_learn_time = time.perf_counter()
 
