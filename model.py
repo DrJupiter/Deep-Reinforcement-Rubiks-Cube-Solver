@@ -670,4 +670,10 @@ def update_weights(self):
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
-"""
+"""; theta_target ))
+
+# TPD = loss?
+
+# loss.backward()                       (brugt ved fish ai)
+# (weights * loss).mean().backward()    (brugt i REGNBUEN)
+
