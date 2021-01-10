@@ -155,7 +155,7 @@ class Agent():
         if suggested == correct:
             return 5
         else:
-            return -50
+            return -30
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -206,8 +206,12 @@ class Agent():
                     # Get random cube and the reverse of the actions that led to it
                     cube, reverse_actions = memory.generate_random_cube()
                     depth = len(reverse_actions)
-                    print(reverse_actions)
+                    
                     loss = torch.zeros(depth)
+                    loss_vec = torch.zeros(depth,(len(self.actions)))
+
+                    
+
                     for i in range(depth):
 
                         # Get the state og the c
@@ -215,19 +219,16 @@ class Agent():
                             self.device)  # . grad = true
 
                         # find new best act and the corresponding act_val og online N
-                        act, act_val_q_online = self.get_best_act_val(
-                            input, Network.Online)
+                        act, act_val_q_online = self.get_best_act_val(input, Network.Online)
                         correct_act = reverse_actions[depth-i-1]
-                        print(correct_act, reverse_actions[depth-i-1])
+                        
                         # find act_val og target N according to best_act of online
                         # act_val_q_target = self.target(
                         #    input)[ACTIONS.index(action)]
-                        act_val_q_target = self.get_val(
-                            input, Network.Target, act)
+                        act_val_q_target = self.get_val(input, Network.Target, act)
 
                         # Calculate reward based on if correct action = reverse action
-                        reward = self.experience_reward(
-                            ACTIONS[act], correct_act)
+                        reward = self.experience_reward(ACTIONS[act], correct_act)
 
                         # update cube according to optimal action (reverse action)
                         cube(correct_act)
@@ -235,16 +236,30 @@ class Agent():
                         # Calculate loss based on TD and reward
                         # self.n_tpd_iter(1, reward, act_val_q_target, act_val_q_online)
 
-                        loss[i] = reward + self.gamma * \
-                            act_val_q_target - act_val_q_online
+                        # calc loss vector
+                        
+                        loss1 = torch.full((len(self.actions),),-1)
+                        loss1[ACTIONS.index(correct_act)] = 2
+
+                        loss_vec[i] = loss1 + self.gamma * self.target(input) - self.online(input)
+                        loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
+                        
+                        ######
 
                         # Times are changing
                         replay_time -= 1
                         time += 1
 
-                    # Update online weights based on loss (n_tpd)
-                    self.update_online(torch.mean(loss), act_val_q_online)
 
+                    #print(f"iunput maybe list = {online(input)}")
+
+                    #MSE_loss = (self.online(input)-loss_vec)**2
+
+                    # Update online weights based on loss (n_tpd)
+                    # self.update_online(torch.mean(loss, 0), self.online(input)) #torch.mean(loss)
+
+                    self.update_online(torch.mean(loss), self.online(input)-torch.mean(loss_vec, 0))
+                    # self.update_online(torch.mean(loss), act_val_q_online)
                 # NORMAL
                 else:
 
@@ -274,10 +289,8 @@ class Agent():
                         reward_vector[0] = self.normal_reward(cube)
 
                         if not (cube != SOLVED_CUBE):
-                            act_val_q_target = self.get_val(
-                                input, Network.Target, self.get_best_act(input, Network.Online))
-                            n_tpd = self.n_tpd_iter(
-                                1, reward_vector, act_val_q_target, act_val_q_online)
+                            act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online))
+                            n_tpd = self.n_tpd_iter(1, reward_vector, act_val_q_target, act_val_q_online)
                             self.update_online(n_tpd, act_val_q_online)
                             break
                         else:
@@ -329,13 +342,13 @@ class Agent():
             #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
             print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
             if epochs_trained % 5 == 0: 
-                print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
+                #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
                 print(test.solver_with_info(100))
+                None
 
 
 class Generator():
     def generate_cube(self, move_depth):
-
         # get cube and define as cube
         cube = pc.Cube()
         # actions_nums = cube_shuffle(move_depth)
@@ -345,6 +358,19 @@ class Generator():
             cube(ACTIONS[action_num])
 
         return cube
+
+    def generate_cube_with_info(self, move_depth):
+        self.would_be_win_acts_list = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        # get cube and define as cube
+        cube = pc.Cube()
+        # actions_nums = cube_shuffle(move_depth)
+
+        for action_num in cube_shuffle(move_depth):
+            # Gen cube
+            cube(ACTIONS[action_num])
+            self.would_be_win_acts_list[action_num-6] += 1
+
+        return cube, self.would_be_win_acts_list
 
 
 class ReplayBuffer():
@@ -396,6 +422,8 @@ class Test():
         
         self.win_act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.gen_trajectory_act_list = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        
 
     def get_action(self, input):
         return ACTIONS[torch.argmax(self.network(input))]
@@ -403,8 +431,7 @@ class Test():
     def solve(self):
         cube = self.generator.generate_cube(self.move_depth)
         for num in range(self.move_depth):
-            cube(self.get_action(torch.from_numpy(
-                one_hot_code(cube)).to(self.device)))
+            cube(self.get_action(torch.from_numpy(one_hot_code(cube)).to(self.device)))
 
             if cube != SOLVED_CUBE:
                 None
@@ -418,12 +445,13 @@ class Test():
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
 
     def solve_with_info(self):
-        cube = self.generator.generate_cube(self.move_depth)
+        cube, get_gen_trajectory_act_list = self.generator.generate_cube_with_info(self.move_depth)
         trajectory = []
         
+        self.gen_trajectory_act_list += get_gen_trajectory_act_list
+
         for i in range(self.move_depth):
-            action = self.get_action(torch.from_numpy(
-                one_hot_code(cube)).to(self.device))
+            action = self.get_action(torch.from_numpy(one_hot_code(cube)).to(self.device))
             cube(action)
 
             trajectory.append(action)
@@ -433,19 +461,22 @@ class Test():
                 None
             else:
                 self.win_counter += 1
-                print(trajectory)
+                #print(trajectory)
                 for act in trajectory:
                     # print(ACTIONS.index(act))
                     self.win_act_occ_list[ACTIONS.index(act)] += 1
                 break
+        
+        
 
     def solver_with_info(self, number_of_tests=100):
         self.win_counter = 0
         self.win_act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.act_occ_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.gen_trajectory_act_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         for _ in range(number_of_tests):
             self.solve_with_info()
-        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
+        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n gen acts = {self.gen_trajectory_act_list} \n win acts = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
 
 
 
@@ -488,16 +519,16 @@ print(device)
 online = Model([288], [288, 144, 144, 72, 72, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
 
 # load model
-param = torch.load('./layer_2___')
+param = torch.load('./layer_1')
 online.load_state_dict(param)
-online.eval()
+online.eval() #online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-04, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
-cube("R R")
+cube("B'")
 
 # define cube as input
 input = torch.from_numpy(one_hot_code(cube)).to(device)
@@ -506,20 +537,21 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(3, agent.online, agent.device)
+test = Test(2, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
 print(test.solver_with_info(1000))
 
+#exit(0)
+
 pre_learn_time = time.perf_counter()
 print(f"test time = {pre_learn_time - pre_test_time}")
 
-#exit(0)
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=100_000, replay_shuffle_range=3, replay_chance=0.0, n_steps=5, epoch_time=1, epochs=1)
+agent.learn(replay_time=1_000_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
 
 post_learn_time = time.perf_counter()
 
@@ -530,14 +562,14 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(5000))
+print(test.solver_with_info(1000))
 
 done_time = time.perf_counter()
 
 print(f"learn time = {post_learn_time-pre_learn_time}")
 print(f"total time {done_time}")
 
-torch.save(agent.online.state_dict(), "./layer_2___2paths")
+torch.save(agent.online.state_dict(), "./layer_1")
 
 exit(0)
 
@@ -670,10 +702,11 @@ def update_weights(self):
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
-"""; theta_target ))
+; theta_target ))
 
 # TPD = loss?
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
+"""
