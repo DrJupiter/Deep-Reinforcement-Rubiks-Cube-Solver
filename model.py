@@ -441,47 +441,109 @@ class Test():
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n win move = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
 
 
+
+
+
+
+
+
+import time
+
+start_time = time.perf_counter()
+######################################################################################################################################################################################
+# 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-#device = torch.device('cpu')
 print(device)
-
-
-param = torch.load('./layer_3_training_3_000_000')
-
-online = Model([288], [144, 72, 36, 18], [12]).to(device)
-
-online.load_state_dict(param)
-online.eval()
-
-
-number_of_tests = 5000
-#test1 = Test(2, online, device)
-# print(test1.solver(number_of_tests))
 #
-# if test1.win_counter/number_of_tests >= 0.06:
-#    torch.save(online.state_dict(), "./initially_good")
-#    print("Found one")
-#exit(0)
 
-agent = Agent(online, ACTIONS, alpha=1e-08, device=device)
-cube = pc.Cube()
-cube("R R U")
-input = torch.from_numpy(one_hot_code(cube)).to(device)
-before = agent.online(input)
-agent.learn(replay_time=100_000, replay_shuffle_range=3,
-            replay_chance=0.3, n_steps=7, epoch_time=10_000, epochs=100)
-test = Test(3, agent.online, agent.device)
+while True:
+    online = Model([288], [144, 144, 72, 72, 36, 36, 36], [12]).to(device)
 
-after = agent.online(input)
+    number_of_tests = 1000
 
-print(f"before\n{before} vs after\n{after}")
-print(test.solver_with_info(number_of_tests))
+    test1 = Test(2, online, device)
+    print(test1.solver_with_info(number_of_tests))
 
-
-torch.save(agent.online.state_dict(), "./layer_3_training_4_000_000")
+    if test1.win_counter/number_of_tests >= 0.06:
+        torch.save(online.state_dict(), "./initially_good__3")
+        print("Found one")
+        print(test1.solver_with_info(number_of_tests * 5))
+        break
 
 exit(0)
 
+####################
+
+# choose and print optimal device
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+print(device)
+
+# Load model
+param = torch.load('./initially_good_2moves')
+
+# Initialize model
+online = Model([288], [288, 288, 144, 144, 72, 72, 36, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
+
+# define agent variables
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+
+# define and mutate test cube to show example of weigts
+cube = pc.Cube()
+cube("R R")
+
+# define cube as input
+input = torch.from_numpy(one_hot_code(cube)).to(device)
+
+# find weights before training
+before = agent.online(input)
+
+# define mass test parameters
+test = Test(2, agent.online, agent.device)
+
+pre_test_time = time.perf_counter()
+
+# print mass test results
+#print(test.solver_with_info(1000))
+
+pre_learn_time = time.perf_counter()
+print(f"test time = {pre_learn_time - pre_test_time}")
+
+exit(0)
+
+# start learning and define parameters to learn based on
+agent.learn(replay_time=60_000, replay_shuffle_range=2, replay_chance=0.0, n_steps=5, epoch_time=1_000, epochs=20)
+
+post_learn_time = time.perf_counter()
+
+# find weights after training
+after = agent.online(input)
+
+# print weights from before and after training
+print(f"before\n{before} vs after\n{after}")
+
+# prints results of mass testing after training
+print(test.solver_with_info(5000))
+
+done_time = time.perf_counter()
+
+print(f"learn time = {post_learn_time-pre_learn_time}")
+print(f"total time {done_time}")
+
+torch.save(agent.online.state_dict(), "./layer_2___")
+
+exit(0)
+
+
+
+
+
+
+
+
+
+
+
+"""
 # print(list(online.named_parameters()))
 with torch.no_grad():
     target = deepcopy(online)
@@ -600,3 +662,4 @@ def update_weights(self):
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 
+"""
