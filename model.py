@@ -153,9 +153,9 @@ class Agent():
     #
     def experience_reward(self, suggested, correct):
         if suggested == correct:
-            return 2
+            return 5
         else:
-            return -60
+            return -30
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -519,12 +519,12 @@ print(device)
 online = Model([288], [288, 144, 144, 72, 72, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
 
 # load model
-param = torch.load('./layer_1')
+param = torch.load('./layer_2__new')
 online.load_state_dict(param)
-online.eval() #online.train()
+online.eval() #online.train()5
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-05, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-07, device=device)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -537,12 +537,12 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(4, agent.online, agent.device)
+test = Test(1, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
-#print(test.solver_with_info(1000))
+print(test.solver_with_info(1000))
 
 #exit(0)
 
@@ -551,7 +551,7 @@ print(f"test time = {pre_learn_time - pre_test_time}")
 
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=1_000_000, replay_shuffle_range=4, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=10)
+agent.learn(replay_time=1_000_000, replay_shuffle_range=1, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=50)
 
 post_learn_time = time.perf_counter()
 
@@ -569,7 +569,7 @@ done_time = time.perf_counter()
 print(f"learn time = {post_learn_time-pre_learn_time}")
 print(f"total time {done_time}")
 
-torch.save(agent.online.state_dict(), "./layer_1")
+torch.save(agent.online.state_dict(), "./layer_2__new2")
 
 exit(0)
 
