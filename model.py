@@ -585,7 +585,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # Initialize model
-online = Model([288], [288, 288, 288, 144, 144, 144, 72, 72, 72], [12]).to(device)
+online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 
 # load model
 param = torch.load("./86_6_on_layer_3")
