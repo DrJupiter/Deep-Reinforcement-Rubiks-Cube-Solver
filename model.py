@@ -151,21 +151,12 @@ class Agent:
     # updating the target network
     #
     def experience_reward(self, suggested, correct):
-<<<<<<< Updated upstream
-        reward_vector = torch.full((len(self.actions),), -0.8).to(self.device)
-        reward_vector[ACTIONS.index(correct)] = 0.8
-=======
-        reward_vector = torch.full((len(self.actions),), -1).to(self.device)
-        reward_vector[ACTIONS.index(correct)] = 2
->>>>>>> Stashed changes
+        reward_vector = torch.full((len(self.actions),), -0.1).to(self.device)
+        reward_vector[ACTIONS.index(correct)] = 1.
         if suggested == correct:
-            return (5, reward_vector)
+            return (2, reward_vector)
         else:
-<<<<<<< Updated upstream
-            return (-20, reward_vector)
-=======
             return (-2, reward_vector)
->>>>>>> Stashed changes
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -196,9 +187,6 @@ class Agent:
         for param in self.target.parameters():
             param.requires_grad = False
 
-<<<<<<< Updated upstream
-    def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10):
-=======
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
         if test:
@@ -211,7 +199,6 @@ class Agent:
         else:
             alpha_updater = None
         
->>>>>>> Stashed changes
         generator = Generator()
         epochs_trained = 0
 
@@ -258,57 +245,19 @@ class Agent:
                         # update cube according to optimal action (reverse action)
                         cube(correct_act)
 
-                        # Calculate loss based on TD and reward
-                        # self.n_tpd_iter(1, reward, act_val_q_target, act_val_q_online)
-
-                        # calc loss vector
-                        
-                        loss1 = torch.full((len(self.actions),),-1)
-                        loss1[ACTIONS.index(correct_act)] = 2
-
-<<<<<<< Updated upstream
-                        loss_vec = reward_vector + self.gamma * self.target(input) - self.online(input)
-                        loss = reward + self.gamma * act_val_q_target - act_val_q_online
-=======
-                        loss_vec[i] = reward_vector + self.gamma * self.target(input) - self.online(input)
-                        loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
->>>>>>> Stashed changes
-
-                        ######
-
-                        # Times are changing
-                        replay_time -= 1
-                        time += 1
-<<<<<<< Updated upstream
-                        #self.online.zero_grad()
-                        self.update_online(loss, loss_vec)
-
-<<<<<<< Updated upstream
-
-                    #print(f"iunput maybe list = {online(input)}")
-=======
-=======
                         #loss2 = Loss_fn(output_avg, reward_vector)
-
                         loss2 = self.online(input) - reward_vector
                         loss2.backward(loss2)
                         optimizer.step()  
 
->>>>>>> Stashed changes
                     # print(f"iunput maybe list = {online(input)}")
->>>>>>> Stashed changes
 
                     #MSE_loss = (self.online(input)-loss_vec)**2
 
                     # Update online weights based on loss (n_tpd)
                     # self.update_online(torch.mean(loss, 0), self.online(input)) #torch.mean(loss)
 
-<<<<<<< Updated upstream
-                    
                     # self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
-=======
-                    self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
->>>>>>> Stashed changes
                     # self.update_online(torch.mean(loss), act_val_q_online)
                 # NORMAL
                 else:
@@ -395,28 +344,15 @@ class Agent:
 
             #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
 
-<<<<<<< Updated upstream
-            if test and epoch % 5 == 0:
-                num_tests = 1000
-                print(tester.solver_with_info(num_tests))
-                if alpha_update_frquency[0]:
-
-                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range)
-=======
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
                 num_tests = 500
-<<<<<<< Updated upstream
-=======
                 print(tester1.solver_with_info(num_tests))
                 print(tester2.solver_with_info(num_tests))
                 print(tester3.solver_with_info(num_tests))
->>>>>>> Stashed changes
                 print(tester.solver_with_info(num_tests))
-                if alpha_update_frequency[0]:
-
-                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
->>>>>>> Stashed changes
-                    print(f"The new alpha is {self.alpha}")
+                # if alpha_update_frequency[0]:
+                    # self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
+                    # print(f"The new alpha is {self.alpha}")
 
             self.online.train()
 
@@ -518,11 +454,7 @@ class ReplayBuffer():
     def new_full_buffer(self, max_move_depth=10):
         for _ in range(self.capacity):
             # self.buffer.append(self.generate_moves(np.random.randint(1, max_move_depth)))
-<<<<<<< Updated upstream
-            self.generate_moves(np.random.randint(1, max_move_depth+1))
-=======
             self.generate_moves(np.random.randint(1, max_move_depth + 1))
->>>>>>> Stashed changes
 
     # Genereates a cube based on a random move,
     # when unscrabeling, it should be done in the reverse order
@@ -653,37 +585,15 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # Initialize model
-<<<<<<< Updated upstream
-online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
+online = Model([288], [288, 288, 288, 144, 144, 144, 72, 72, 72], [12]).to(device)
 
 # load model
-<<<<<<< Updated upstream
-param = torch.load("./layer_3_going_for_100")
+param = torch.load("./86_6_on_layer_3")
 online.load_state_dict(param)
 online.eval() #online.train()5
 
 # define agent variables
 agent = Agent(online, ACTIONS, alpha=1e-07, device=device)
-=======
-#online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
-online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
-
-# load model
-#param = torch.load("./layer_1")
-#online.load_state_dict(param)
-online.eval()  # online.train()
-
-# define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
->>>>>>> Stashed changes
-=======
-#param = torch.load("./layer_3_86_v4")
-#online.load_state_dict(param)
-#online.eval()  # online.train()
-
-# define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
->>>>>>> Stashed changes
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -696,49 +606,29 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-<<<<<<< Updated upstream
-=======
 t_depth = 5
->>>>>>> Stashed changes
 test = Test(5, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
-print(test.solver_with_info(1000))
-<<<<<<< Updated upstream
-exit(0)
-=======
+print(test.solver_with_info(500))
+#exit(0)
 
->>>>>>> Stashed changes
 agent.online.train()
 
 
 # start learning and define parameters to learn based on
 
 agent.learn(
-<<<<<<< Updated upstream
-    replay_time=5_000_000,
-    replay_shuffle_range=5,
-    replay_chance=0.0,
-    n_steps=2,
-    epoch_time=1_000,
-    epochs=5_000, 
-=======
     replay_time=100_000,
-    replay_shuffle_range=5,
+    replay_shuffle_range=t_depth,
     replay_chance=0.2,
     n_steps=4,
-<<<<<<< Updated upstream
-    epoch_time=10_000,
-    epochs=100, 
->>>>>>> Stashed changes
-=======
     epoch_time=1_000,
     epochs=10, 
->>>>>>> Stashed changes
     test=True, 
-    alpha_update_frquency=(True, 5))
+    alpha_update_frequency=(False, 4))
 
 agent.online.eval()
 
@@ -751,33 +641,25 @@ print(f"before\n{before} vs after\n{after}")
 # prints results of mass testing after training
 print(test.solver_with_info(1000))
 
-<<<<<<< Updated upstream
+
 done_time = time.perf_counter()
 
-<<<<<<< Updated upstream
 print(f"learn time = {post_learn_time-pre_learn_time}")
 print(f"total time {done_time}")
 
-torch.save(agent.online.state_dict(), "./layer_3_going_for_100")
-=======
-torch.save(agent.online.state_dict(), "./layer_5")
->>>>>>> Stashed changes
-=======
+#torch.save(agent.online.state_dict(), "./layer_3_going_for_100")
+
+
 #print differnce in weights and bias'
 #post_param = agent.online.state_dict()
 #for p in param:
 #    print(param[p]-post_param[p])
 
 #torch.save(agent.online.state_dict(), "./layer_3_86_v4")
->>>>>>> Stashed changes
 
 exit(0)
 
 ######################################################################################################################################################################################
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-######################################################################################################################################################################################
 ######################################################################################################################################################################################
 
 
@@ -788,14 +670,7 @@ exit(0)
 
 
 
-
-
-
->>>>>>> Stashed changes
 """
-=======
-
->>>>>>> Stashed changes
 # print(list(online.named_parameters()))
 with torch.no_grad():
     target = deepcopy(online)
@@ -920,3 +795,4 @@ def update_weights(self):
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
+"""
