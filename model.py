@@ -49,7 +49,7 @@ class Network(Enum):
 
 
 class Agent:
-    def __init__(self, online, actions, target=None, gamma=0.6, alpha=1e-08, epsilon=0.9, sticky=-1.0, device=None):
+    def __init__(self, online, actions, target=None, gamma=0.6, alpha=1e-08, epsilon=0.9, sticky=-1.0, device=None, adam_optim = False):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") if device is None else device
         self.online = online.to(self.device)
         self.target = deepcopy(
@@ -62,6 +62,7 @@ class Agent:
         self.sticky = sticky
         self.gamma = gamma
         self.alpha = alpha
+        self.adam_optim = adam_optim
 
     def get_val(self, input, network, index):
         if network is Network.Online:
@@ -189,6 +190,9 @@ class Agent:
 
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
+        optimizer = torch.optim.Adam(self.online.parameters(), lr=self.alpha)
+        Loss_fn = torch.nn.MSELoss(reduction='mean')
+
         if test:
             tester = Test(replay_shuffle_range, self.online, self.device)
         else:
@@ -218,47 +222,61 @@ class Agent:
                     # Get random cube and the reverse of the actions that led to it
                     cube, reverse_actions = memory.generate_random_cube()
                     depth = len(reverse_actions)
-                    
-                    loss = torch.zeros(depth)
-                    loss_vec = torch.zeros(depth,(len(self.actions)))
 
-                    
+                    if self.adam_optim is not None:
 
-                    for i in range(depth):
+                        for i in range(depth):
+                            input = torch.from_numpy(one_hot_code(cube)).to(self.device) 
 
-                        # Get the state og the c
-                        input = torch.from_numpy(one_hot_code(cube)).to(
-                            self.device)  # . grad = true
+                            act, table_online = self.get_best_act_array(input, Network.Online)
+                            val_online = table_online[act]
 
-                        # find new best act and the corresponding act_val og online N
-                        act, act_val_q_online = self.get_best_act_val(input, Network.Online)
-                        correct_act = reverse_actions[depth-i-1]
-                        
-                        # find act_val og target N according to best_act of online
-                        # act_val_q_target = self.target(
-                        #    input)[ACTIONS.index(action)]
-                        act_val_q_target = self.get_val(input, Network.Target, act)
+                            # TODO: convert input, network, act -> input, act, network
+                            val_target = self.get_val(input, act, Network.Target)
 
-                        # Calculate reward based on if correct action = reverse action
-                        reward = self.experience_reward(ACTIONS[act], correct_act)
+                            correct_act = reverse_actions[depth - i - 1]
 
-                        # update cube according to optimal action (reverse action)
-                        cube(correct_act)
+                            reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                        #loss2 = Loss_fn(output_avg, reward_vector)
-                        loss2 = self.online(input) - reward_vector
-                        loss2.backward(loss2)
-                        optimizer.step()  
+                            tpd = reward + self.gamma * val_target - val_online
+                            
+                            loss = table_online - reward_vector
+                            
+                            #self.update_online_adam(loss, factor=-tpd)
+                                # -factor, because the step is taken in the direction of -step_size * factor
+                                # and we want a step towards the steepest ascent
+                            
+                            loss.backward(loss)
+                            optimizer.step()
+                            
+                            cube(correct_act)
 
-                    # print(f"iunput maybe list = {online(input)}")
+                            replay_time -= 1
+                            time += 1
 
-                    #MSE_loss = (self.online(input)-loss_vec)**2
+                    else:
 
-                    # Update online weights based on loss (n_tpd)
-                    # self.update_online(torch.mean(loss, 0), self.online(input)) #torch.mean(loss)
+                        for i in range(depth):
+                            input = torch.from_numpy(one_hot_code(cube)).to(self.device) 
 
-                    # self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
-                    # self.update_online(torch.mean(loss), act_val_q_online)
+                            act, table_online = self.get_best_act_array(input, Network.Online)
+
+                            table_target = self.get_array(input, Network.Target)
+
+                            correct_act = reverse_actions[depth - i - 1]
+
+                            reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
+
+                            TD_vec = reward_vector + self.gamma * table_target - table_online
+                            loss = reward + self.gamma * table_target[act] - table_online[act]
+
+                            self.update_online(loss, TD_vec)
+
+                            cube(correct_act)
+
+                            replay_time -= 1
+                            time += 1  
+
                 # NORMAL
                 else:
 
@@ -588,12 +606,12 @@ print(device)
 online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./86_6_on_layer_3")
-online.load_state_dict(param)
+#param = torch.load("./86_6_on_layer_3")
+#online.load_state_dict(param)
 online.eval() #online.train()5
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-07, device=device)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam_optim = True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -612,7 +630,7 @@ test = Test(5, agent.online, agent.device)
 pre_test_time = time.perf_counter()
 
 # print mass test results
-print(test.solver_with_info(500))
+#print(test.solver_with_info(500))
 #exit(0)
 
 agent.online.train()
