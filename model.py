@@ -48,10 +48,9 @@ class Network(Enum):
     Target = 1,
 
 
-class Agent():
-    def __init__(self, online, actions, target=None, gamma=0.4, alpha=1e-08, epsilon=0.9, sticky=-1.0, device=None):
-        self.device = torch.device(
-            "cuda:0" if torch.cuda.is_available() else "cpu") if device is None else device
+class Agent:
+    def __init__(self, online, actions, target=None, gamma=0.6, alpha=1e-08, epsilon=0.9, sticky=-1.0, device=None):
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") if device is None else device
         self.online = online.to(self.device)
         self.target = deepcopy(
             online) if target is None else target.to(self.device)
@@ -152,10 +151,12 @@ class Agent():
     # updating the target network
     #
     def experience_reward(self, suggested, correct):
+        reward_vector = torch.full((len(self.actions),), -0.8).to(self.device)
+        reward_vector[ACTIONS.index(correct)] = 0.8
         if suggested == correct:
-            return 5
+            return (5, reward_vector)
         else:
-            return -30
+            return (-20, reward_vector)
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -241,14 +242,16 @@ class Agent():
                         loss1 = torch.full((len(self.actions),),-1)
                         loss1[ACTIONS.index(correct_act)] = 2
 
-                        loss_vec[i] = loss1 + self.gamma * self.target(input) - self.online(input)
-                        loss[i] = reward + self.gamma * act_val_q_target - act_val_q_online
-                        
+                        loss_vec = reward_vector + self.gamma * self.target(input) - self.online(input)
+                        loss = reward + self.gamma * act_val_q_target - act_val_q_online
+
                         ######
 
                         # Times are changing
                         replay_time -= 1
                         time += 1
+                        #self.online.zero_grad()
+                        self.update_online(loss, loss_vec)
 
 
                     #print(f"iunput maybe list = {online(input)}")
@@ -258,7 +261,8 @@ class Agent():
                     # Update online weights based on loss (n_tpd)
                     # self.update_online(torch.mean(loss, 0), self.online(input)) #torch.mean(loss)
 
-                    self.update_online(torch.mean(loss), self.online(input)-torch.mean(loss_vec, 0))
+                    
+                    # self.update_online(torch.mean(loss), self.online(input) - torch.mean(loss_vec, 0))
                     # self.update_online(torch.mean(loss), act_val_q_online)
                 # NORMAL
                 else:
@@ -338,13 +342,80 @@ class Agent():
                         break
                     time += acc
             self.update_target_net()
-            epochs_trained += 1
-            #print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%", end='\r')
-            print(f"epochs trained: {epochs_trained} of {epochs}, {(epochs_trained/epochs) * 100}%")
-            if epochs_trained % 5 == 0: 
-                #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device)))
-                print(test.solver_with_info(100))
-                None
+
+            self.online.eval()
+
+            print(f"epochs trained: {epoch} of {epochs}, {(epoch/epochs) * 100}%")
+
+            #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
+
+            if test and epoch % 5 == 0:
+                num_tests = 1000
+                print(tester.solver_with_info(num_tests))
+                if alpha_update_frquency[0]:
+
+                    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range)
+                    print(f"The new alpha is {self.alpha}")
+
+            self.online.train()
+
+
+class AlphaUpdater:
+
+    def __init__(self, frequency, depth):
+        self.frequency = frequency
+        self.buffer = []
+        self.counter = 0
+        self.depth = depth
+
+    def win_rate_fun(self, win_rate):
+        return (10**(-4) * win_rate + 1)/(10**3 * win_rate + 1)
+
+    def depth_fun(self, current_depth):
+        return (current_depth - self.depth+0.1)/(self.depth + 0.1)
+
+    def andreas_fun(self, win_rate, current_depth):
+        return (1/win_rate)**1.5 * 1/(current_depth * 5) * 1e-04
+
+    def weighed_average(self, phi):
+        w_avg = 0
+        w_length = 0
+        for i, val in zip(range(len(self.buffer)), reversed(self.buffer)):
+            w_avg += val * phi**i
+            w_length += i * phi**i
+        return w_avg/w_length
+
+    def stagnated(self):
+        if np.std(np.array(self.buffer)[-self.frequency:]) < 0.05:
+            return True
+        else:
+            return False
+
+    def update(self, alpha, win_rate, current_depth, phi=0.5):
+        #self.buffer[self.counter] = win_rate
+        self.buffer.append(win_rate)
+        self.counter += 1
+        if self.counter == self.frequency:
+            if self.stagnated():
+                if alpha < 10**(-6.5):
+                    alpha = alpha * 10**3
+                else:
+                    alpha = alpha * 10**(-3)
+            else:
+                w_mean = self.weighed_average(phi)
+                #std = np.std(self.buffer)
+
+                a_alpha = self.andreas_fun(w_mean, current_depth)
+
+                alpha = self.win_rate_fun(w_mean) * self.depth_fun(current_depth) 
+#                print(f"{self.win_rate_fun(w_mean)} * {self.depth_fun(current_depth)}") 
+#                print(f"Current depth {current_depth} and weighted win rate {w_mean}")
+                print(f"alpha K: {alpha}, alpha A: {a_alpha}")
+
+            self.counter = 0
+            return alpha
+        else:
+            return alpha
 
 
 class Generator():
@@ -440,6 +511,7 @@ class Test():
                 break
 
     def solver(self, number_of_tests=100):
+        self.win_counter = 0
         for _ in range(number_of_tests):
             self.solve()
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
@@ -516,10 +588,10 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # Initialize model
-online = Model([288], [288, 144, 144, 72, 72, 36, 36], [12]).to(device) #online = Model([288], [144, 72, 36, 18], [12]).to(device)
+online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load('./layer_2__new')
+param = torch.load("./layer_3_going_for_100")
 online.load_state_dict(param)
 online.eval() #online.train()5
 
@@ -537,23 +609,28 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-test = Test(1, agent.online, agent.device)
+test = Test(5, agent.online, agent.device)
 
 pre_test_time = time.perf_counter()
 
 # print mass test results
 print(test.solver_with_info(1000))
-
-#exit(0)
-
-pre_learn_time = time.perf_counter()
-print(f"test time = {pre_learn_time - pre_test_time}")
+exit(0)
+agent.online.train()
 
 
 # start learning and define parameters to learn based on
-agent.learn(replay_time=1_000_000, replay_shuffle_range=1, replay_chance=0.0, n_steps=2, epoch_time=1000, epochs=50)
+agent.learn(
+    replay_time=5_000_000,
+    replay_shuffle_range=5,
+    replay_chance=0.0,
+    n_steps=2,
+    epoch_time=1_000,
+    epochs=5_000, 
+    test=True, 
+    alpha_update_frquency=(True, 5))
 
-post_learn_time = time.perf_counter()
+agent.online.eval()
 
 # find weights after training
 after = agent.online(input)
@@ -562,27 +639,18 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(1000))
+print(test.solver_with_info(5000))
 
 done_time = time.perf_counter()
 
 print(f"learn time = {post_learn_time-pre_learn_time}")
 print(f"total time {done_time}")
 
-torch.save(agent.online.state_dict(), "./layer_2__new2")
+torch.save(agent.online.state_dict(), "./layer_3_going_for_100")
 
 exit(0)
 
-
-
-
-# layer_2___2paths
-
-
-
-
-
-
+######################################################################################################################################################################################
 """
 # print(list(online.named_parameters()))
 with torch.no_grad():
@@ -708,5 +776,4 @@ def update_weights(self):
 
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
-
 """
