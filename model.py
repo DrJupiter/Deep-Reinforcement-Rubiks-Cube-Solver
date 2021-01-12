@@ -161,7 +161,11 @@ class Agent:
         if suggested == correct:
             return (5, reward_vector)
         else:
+<<<<<<< Updated upstream
             return (-20, reward_vector)
+=======
+            return (-2, reward_vector)
+>>>>>>> Stashed changes
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
@@ -275,6 +279,7 @@ class Agent:
                         # Times are changing
                         replay_time -= 1
                         time += 1
+<<<<<<< Updated upstream
                         #self.online.zero_grad()
                         self.update_online(loss, loss_vec)
 
@@ -282,6 +287,14 @@ class Agent:
 
                     #print(f"iunput maybe list = {online(input)}")
 =======
+=======
+                        #loss2 = Loss_fn(output_avg, reward_vector)
+
+                        loss2 = self.online(input) - reward_vector
+                        loss2.backward(loss2)
+                        optimizer.step()  
+
+>>>>>>> Stashed changes
                     # print(f"iunput maybe list = {online(input)}")
 >>>>>>> Stashed changes
 
@@ -392,6 +405,12 @@ class Agent:
 =======
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
                 num_tests = 500
+<<<<<<< Updated upstream
+=======
+                print(tester1.solver_with_info(num_tests))
+                print(tester2.solver_with_info(num_tests))
+                print(tester3.solver_with_info(num_tests))
+>>>>>>> Stashed changes
                 print(tester.solver_with_info(num_tests))
                 if alpha_update_frequency[0]:
 
@@ -638,6 +657,7 @@ print(device)
 online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(device)
 
 # load model
+<<<<<<< Updated upstream
 param = torch.load("./layer_3_going_for_100")
 online.load_state_dict(param)
 online.eval() #online.train()5
@@ -652,6 +672,14 @@ online = Model([288], [288, 288, 288, 144, 144, 144, 144, 72, 72, 72], [12]).to(
 #param = torch.load("./layer_1")
 #online.load_state_dict(param)
 online.eval()  # online.train()
+
+# define agent variables
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
+>>>>>>> Stashed changes
+=======
+#param = torch.load("./layer_3_86_v4")
+#online.load_state_dict(param)
+#online.eval()  # online.train()
 
 # define agent variables
 agent = Agent(online, ACTIONS, alpha=1e-06, device=device)
@@ -687,6 +715,7 @@ agent.online.train()
 
 
 # start learning and define parameters to learn based on
+
 agent.learn(
 <<<<<<< Updated upstream
     replay_time=5_000_000,
@@ -700,8 +729,13 @@ agent.learn(
     replay_shuffle_range=5,
     replay_chance=0.2,
     n_steps=4,
+<<<<<<< Updated upstream
     epoch_time=10_000,
     epochs=100, 
+>>>>>>> Stashed changes
+=======
+    epoch_time=1_000,
+    epochs=10, 
 >>>>>>> Stashed changes
     test=True, 
     alpha_update_frquency=(True, 5))
@@ -717,6 +751,7 @@ print(f"before\n{before} vs after\n{after}")
 # prints results of mass testing after training
 print(test.solver_with_info(1000))
 
+<<<<<<< Updated upstream
 done_time = time.perf_counter()
 
 <<<<<<< Updated upstream
@@ -727,11 +762,36 @@ torch.save(agent.online.state_dict(), "./layer_3_going_for_100")
 =======
 torch.save(agent.online.state_dict(), "./layer_5")
 >>>>>>> Stashed changes
+=======
+#print differnce in weights and bias'
+#post_param = agent.online.state_dict()
+#for p in param:
+#    print(param[p]-post_param[p])
+
+#torch.save(agent.online.state_dict(), "./layer_3_86_v4")
+>>>>>>> Stashed changes
 
 exit(0)
 
 ######################################################################################################################################################################################
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+######################################################################################################################################################################################
+######################################################################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> Stashed changes
 """
 =======
 
