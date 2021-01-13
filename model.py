@@ -9,8 +9,7 @@ from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 
 from enum import Enum, unique
 
-#from adam_mul import AdamMul
-
+from adam_mul import AdamMul
 # Input will be 288 due to 6*8*6 = 288, SIDES*(ALL_TILES-MIDDLE_TILES)*(LEN_COLOR_VEC)
 
 # Output will be of length 12, since there are 12 actions.
@@ -79,7 +78,7 @@ class Agent:
         self.sticky = sticky
         self.gamma = gamma
         self.alpha = alpha
-        self.adam_optim = adam
+        self.adam_optim = AdamMul(self.online.parameters(), lr=self.alpha) if adam else None
 
     def get_val(self, input, index, network):
         if network is Network.Online:
@@ -206,7 +205,7 @@ class Agent:
     #
     def experience_reward(self, suggested, correct):
         reward_vector = torch.full((len(self.actions),), -0.1).to(self.device)
-        reward_vector[ACTIONS.index(correct)] = 10.
+        reward_vector[ACTIONS.index(correct)] = 1.
         if suggested == correct:
             return (2, reward_vector)
         else:
@@ -214,7 +213,7 @@ class Agent:
 
     def normal_reward(self, state):
         if state.__ne__(SOLVED_CUBE):
-            return -1
+            return 0
         else:
             return 10
 
@@ -235,7 +234,7 @@ class Agent:
 
             param.data.sub_(-loss * grad * self.alpha)  # -loss ? yes
 
-    def update_online_adam(self, loss, factor):
+    def update_online_adam(self, loss, factor = 1):
 
         self.online.network.zero_grad()
 
@@ -253,9 +252,9 @@ class Agent:
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
         optimizer = torch.optim.Adam(self.online.parameters(), lr=self.alpha)
-        Loss_fn = torch.nn.MSELoss(reduction='mean')
-
-        #optimizer = AdamMul(self.online.parameters, lr=self.alpha)
+#        Loss_fn = torch.nn.MSELoss(reduction='mean')
+#
+#        optimizer = AdamMul(self.online.parameters, lr=self.alpha)
 
         if test:
             tester1 = Test(1, self.online, self.device)
@@ -280,7 +279,7 @@ class Agent:
 
             # TODO: ONLY GENRATE THIS IF WE DO AN ACTUAL REPLAY
             memory.new_full_buffer(replay_shuffle_range)
-
+            couldnt_solve = 0                
             while time < epoch_time:
                 # REPLAY
                 if replay_time > 0 or np.random.random() <= replay_chance:
@@ -304,20 +303,22 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            # tpd = reward + self.gamma * val_target - val_online
+                            #TD = reward + self.gamma * val_target - val_online
 
                             loss = table_online - reward_vector
                             
-                            #self.update_online_adam(loss, factor=-tpd)
-                                # -factor, because the step is taken in the direction of -step_size * factor
-                                # and we want a step towards the steepest ascent
+                            # -factor, because the step is taken in the direction of -step_size * factor
+                            # and we want a step towards the steepest ascent
+                            # self.update_online_adam(loss, factor=-TD)
                             
-                            # OG adam
+                            # self.update_online_adam(loss)
+                            
                             loss.backward(loss)
                             optimizer.step()
 
-
                             cube(correct_act)
+
+
 
                             replay_time -= 1
                             time += 1
@@ -335,16 +336,16 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            TD_vec = reward_vector + self.gamma * table_target - table_online
-                            loss = reward + self.gamma * table_target[act] - table_online[act]
+                            loss_vec = table_online - reward_vector
+                            TD = reward + self.gamma * table_target[act] - table_online[act]
 
-                            self.update_online(loss, TD_vec)
+                            self.update_online(TD, loss_vec)
 
                             cube(correct_act)
 
                             replay_time -= 1
                             time += 1
-
+                
                 else:
 
                     # We need to generate a random state here
@@ -352,12 +353,49 @@ class Agent:
                     depth = np.random.randint(1, replay_shuffle_range + 1)
                     cube = generator.generate_cube(depth)
 
+                    TD = 0
+                    solved = False
+
+                    for i in range(depth):
+                        input = torch.from_numpy(one_hot_code(cube)).to(self.device) 
+
+                        act, table_online = self.get_best_act_array(input, Network.Online)
+                        val_online = table_online[act]
+
+                        # TODO: convert input, network, act -> input, act, network
+                        val_target = self.get_val(input, act, Network.Target)
+
+
+                        TD += self.gamma * val_target - val_online
+
+                        loss = table_online
+                        
+                        loss.backward(loss, retain_graph = True)
+                        
+                        cube(ACTIONS[act])
+
+                        if not (cube != SOLVED_CUBE):
+                            solved = True
+                            self.update_online_adam(loss, factor= - (TD * 10))
+                            #print(f"TD_sum = {TD}")
+                            #optimizer.step()
+
+                        replay_time -= 1
+                        time += 1
+                    
+                    if solved is False:
+                        #optimizer.step()
+                        self.update_online_adam(loss, factor=0)
+                        couldnt_solve += 1
+                        #print("couldnt solve")
+
+                    """
                     acc = 0
                     while acc < depth:
 
                         input = torch.from_numpy(one_hot_code(cube)).to(self.device)
 
-                        act, act_val_q_online = self.get_act_val(input, Network.Online)
+                        act, val_online = self.get_act_val(input, Network.Online)
 
                         # Do action and add 1 to the accumulator
                         cube(ACTIONS[act])
@@ -368,21 +406,27 @@ class Agent:
 
                         reward_vector[0] = self.normal_reward(cube)
 
+
+
                         if not (cube != SOLVED_CUBE):
-                            act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online),)
-                            n_tpd = self.n_tpd_iter(1, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd, act_val_q_online)
+                            val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target)
+                            n_tpd = self.n_tpd_iter(1, reward_vector, val_target, val_online)
+                            if self.adam_optim is None:
+                                self.update_online(n_tpd, val_online)
+                            else:
+                                self.update_online_adam(val_online, -n_tpd)
                             break
-                        else:
-                            None
+                        
 
                         for i in range(1, n_steps - 1):
                             # Select action
+                            input = None
                             if self.epsilon_greedy():
                                 act = self.get_epsilon_act()
                                 # TODO: self.update_epsilon()
                             else:
-                                act = self.get_best_act(torch.from_numpy(one_hot_code(cube)).to(self.device), Network.Online)
+                                input = torch.from_numpy(one_hot_code(cube)).to(self.device) 
+                                act = self.get_best_act(input, Network.Online)
 
                             # Do action and add 1 to the accumulator
                             cube(ACTIONS[act])
@@ -394,36 +438,49 @@ class Agent:
                             # If Cube is solved stop prematurely
                             # and update the weights
                             if not (cube != SOLVED_CUBE):
-                                input = torch.from_numpy(one_hot_code(cube)).to(self.device)
-                                act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online))
-                                n_tpd = self.n_tpd_iter(i, reward_vector, act_val_q_target, act_val_q_online)
-                                self.update_online(n_tpd, act_val_q_online)
+                                if input is None:
+                                    input = torch.from_numpy(one_hot_code(cube)).to(self.device)
+                                val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target)
+                                n_tpd = self.n_tpd_iter(i, reward_vector, val_target, val_online)
+                                if self.adam_optim is None:
+                                    self.update_online(n_tpd, val_online)
+                                else:
+                                    self.update_online_adam(val_online, -n_tpd)
                                 break
 
                             # TODO: if cube is solved then stop
                         else:
                             input = torch.from_numpy(one_hot_code(cube)).to(self.device)
-                            act_val_q_target = self.get_val(input, Network.Target, self.get_best_act(input, Network.Online)) 
-                            n_tpd = self.n_tpd_iter(n_steps, reward_vector, act_val_q_target, act_val_q_online)
-                            self.update_online(n_tpd, act_val_q_online)
+                            val_target = self.get_val(input, self.get_best_act(input, Network.Online), Network.Target) 
+                            n_tpd = self.n_tpd_iter(n_steps, reward_vector, val_target, val_online)
+                            if self.adam_optim is None:
+                                self.update_online(n_tpd, val_online)
+                            else:
+                                val_online.backwards(val_online, retain_graph = True)
                             continue
                         break
+                    
                     time += acc
-
+                    """
             self.update_target_net()
 
             self.online.eval()
 
-            print(f"epochs trained: {epoch} of {epochs}, {(epoch/epochs) * 100}%")
+            print(f"epochs trained: {epoch} of {epochs}, {(epoch/epochs) * 100}%, WILD: couldnt solve = {couldnt_solve}")
 
             #print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
 
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
                 num_tests = 500
-                print(tester1.solver_with_info(num_tests))
+                #print(tester1.solver_with_info(num_tests))
                 print(tester2.solver_with_info(num_tests))
-                print(tester.solver_with_info(num_tests))
+                #print(tester3.solver_with_info(num_tests))
+                print(tester.solver_with_info(num_tests*2))
+
                 print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
+                torch.save(agent.online.state_dict(), "./layer_5_adam_wild_cum_stop_v2")
+                print("saved")
+
                 #if alpha_update_frequency[0]:
                 #
                 #    self.alpha = alpha_updater.update(self.alpha, tester.win_counter/num_tests, replay_shuffle_range, 0.7)
@@ -657,15 +714,16 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # Initialize model
+#online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
 online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-#param = torch.load("./layer_3_86_v3")
-#online.load_state_dict(param)
-#online.eval()  # online.train()
+param = torch.load("./layer_5_adam_vv2")
+online.load_state_dict(param)
+online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
+agent = Agent(online, ACTIONS, alpha=1e-09, device=device, adam=True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -678,27 +736,26 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 5
+t_depth = 3
 test = Test(t_depth, agent.online, agent.device)
 
 
 # print mass test results
-print(test.solver_with_info(500))
+#print(test.solver_with_info(500))
 
 agent.online.train()
 
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=100_000,
+    replay_time=0,
     replay_shuffle_range=t_depth,
-    replay_chance=0.2,
+    replay_chance=0.02,
     n_steps=4,
     epoch_time=1_000,
-    epochs=10, 
+    epochs=100, 
     test=True, 
-    alpha_update_frequency=(False, 4),
-    )
+    alpha_update_frequency=(False, 4),)
 
 agent.online.eval()
 
@@ -709,10 +766,26 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(1000))
 
+tester1 = Test(1, agent.online, agent.device)
+tester2 = Test(2, agent.online, agent.device)
+tester3 = Test(3, agent.online, agent.device)
+#tester4 = Test(4, agent.online, agent.device)
 
-torch.save(agent.online.state_dict(), "./layer_5_adam_U_vec")
+print(tester1.solver_with_info(1000))
+print(tester2.solver_with_info(1000))
+print(tester3.solver_with_info(1000))
+#print(tester4.solver_with_info(1000))
+
+print(test.solver_with_info(5000))
+
+torch.save(agent.online.state_dict(), "./layer_5_adam_vv2")
+
+#print differnce in weights and bias'
+post_param = agent.online.state_dict()
+for p in param:
+    print(param[p]-post_param[p])
+
 
 exit(0)
 
@@ -885,3 +958,6 @@ def update_weights(self):
 # loss.backward()                       (brugt ved fish ai)
 # (weights * loss).mean().backward()    (brugt i REGNBUEN)
 """
+
+
+# s154443 kristian aalling sørensen
