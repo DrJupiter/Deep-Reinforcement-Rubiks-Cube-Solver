@@ -9,7 +9,7 @@ from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 
 from enum import Enum, unique
 
-from adam_mul import AdamMul
+#from adam_mul import AdamMul
 
 # Input will be 288 due to 6*8*6 = 288, SIDES*(ALL_TILES-MIDDLE_TILES)*(LEN_COLOR_VEC)
 
@@ -79,7 +79,7 @@ class Agent:
         self.sticky = sticky
         self.gamma = gamma
         self.alpha = alpha
-        self.adam_optim = AdamMul(self.online.parameters(), lr=self.alpha) if adam else None
+        self.adam_optim = adam
 
     def get_val(self, input, index, network):
         if network is Network.Online:
@@ -206,7 +206,7 @@ class Agent:
     #
     def experience_reward(self, suggested, correct):
         reward_vector = torch.full((len(self.actions),), -0.1).to(self.device)
-        reward_vector[ACTIONS.index(correct)] = 1.
+        reward_vector[ACTIONS.index(correct)] = 10.
         if suggested == correct:
             return (2, reward_vector)
         else:
@@ -252,10 +252,10 @@ class Agent:
 
     def learn(self, replay_time=10_000, replay_shuffle_range=10, replay_chance=0.2, n_steps=5, epoch_time=1_000, epochs=10, test=False, alpha_update_frequency=(False, 5)):
 
-#        optimizer = torch.optim.Adam(self.online.parameters(), lr=self.alpha)
-#        Loss_fn = torch.nn.MSELoss(reduction='mean')
-#
-#        optimizer = AdamMul(self.online.parameters, lr=self.alpha)
+        optimizer = torch.optim.Adam(self.online.parameters(), lr=self.alpha)
+        Loss_fn = torch.nn.MSELoss(reduction='mean')
+
+        #optimizer = AdamMul(self.online.parameters, lr=self.alpha)
 
         if test:
             tester1 = Test(1, self.online, self.device)
@@ -304,13 +304,19 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            tpd = reward + self.gamma * val_target - val_online
+                            # tpd = reward + self.gamma * val_target - val_online
 
                             loss = table_online - reward_vector
                             
-                            # -factor, because the step is taken in the direction of -step_size * factor
-                            # and we want a step towards the steepest ascent
-                            self.update_online_adam(loss, factor=-tpd)
+                            #self.update_online_adam(loss, factor=-tpd)
+                                # -factor, because the step is taken in the direction of -step_size * factor
+                                # and we want a step towards the steepest ascent
+                            
+                            # OG adam
+                            loss.backward(loss)
+                            optimizer.step()
+
+
                             cube(correct_act)
 
                             replay_time -= 1
@@ -654,9 +660,9 @@ print(device)
 online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./layer_3_86_v3")
-online.load_state_dict(param)
-online.eval()  # online.train()
+#param = torch.load("./layer_3_86_v3")
+#online.load_state_dict(param)
+#online.eval()  # online.train()
 
 # define agent variables
 agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
@@ -672,7 +678,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 3
+t_depth = 5
 test = Test(t_depth, agent.online, agent.device)
 
 
@@ -703,10 +709,10 @@ after = agent.online(input)
 print(f"before\n{before} vs after\n{after}")
 
 # prints results of mass testing after training
-print(test.solver_with_info(5000))
+print(test.solver_with_info(1000))
 
 
-torch.save(agent.online.state_dict(), "./layer_5_adam")
+torch.save(agent.online.state_dict(), "./layer_5_adam_U_vec")
 
 exit(0)
 
