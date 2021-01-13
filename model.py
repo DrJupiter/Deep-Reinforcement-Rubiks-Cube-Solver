@@ -260,6 +260,9 @@ class Agent:
             tester1 = Test(1, self.online, self.device)
             tester2 = Test(2, self.online, self.device)
             tester3 = Test(3, self.online, self.device)
+            tester4 = Test(4, self.online, self.device)
+            tester20 = Test(20, self.online, self.device)
+            
             tester = Test(replay_shuffle_range, self.online, self.device)
         else:
             tester = None
@@ -288,6 +291,9 @@ class Agent:
                     cube, reverse_actions = memory.generate_random_cube()
                     depth = len(reverse_actions)
 
+                    #reverse_actions = reverse_actions[:len(reverse_actions)-20]
+                    #depth = len(reverse_actions)
+
                     if self.adam_optim is not None:
 
                         for i in range(depth):
@@ -311,8 +317,10 @@ class Agent:
                             # and we want a step towards the steepest ascent
                             # self.update_online_adam(loss, factor=-TD)
                             
-                            # self.update_online_adam(loss)
+                            #self.update_online_adam(loss)
                             
+                            self.online.network.zero_grad()
+
                             loss.backward(loss)
                             optimizer.step()
 
@@ -350,7 +358,7 @@ class Agent:
 
                     # We need to generate a random state here
                     # We also need to one-hot-code the state before we pass it as input
-                    depth = np.random.randint(1, replay_shuffle_range + 1)
+                    depth = np.random.randint(3, replay_shuffle_range + 1)
                     cube = generator.generate_cube(depth)
 
                     TD = 0
@@ -379,6 +387,7 @@ class Agent:
                             self.update_online_adam(loss, factor= - (TD * 10))
                             #print(f"TD_sum = {TD}")
                             #optimizer.step()
+                            self.online.network.zero_grad()
 
                         replay_time -= 1
                         time += 1
@@ -388,6 +397,7 @@ class Agent:
                         self.update_online_adam(loss, factor=0)
                         couldnt_solve += 1
                         #print("couldnt solve")
+                        self.online.network.zero_grad()
 
                     """
                     acc = 0
@@ -472,13 +482,16 @@ class Agent:
 
             if test and epoch % 5 == 0:  # add mulighed for at hvis winrate = 100p tester den en større sample, og hvis den også er 100, så stopper den med det samme
                 num_tests = 500
-                #print(tester1.solver_with_info(num_tests))
+                print(tester1.solver_with_info(num_tests))
                 print(tester2.solver_with_info(num_tests))
-                #print(tester3.solver_with_info(num_tests))
-                print(tester.solver_with_info(num_tests*2))
+                print(tester3.solver_with_info(num_tests))
+                print(tester4.solver_with_info(num_tests))
+                #print(tester20.solver_with_info(num_tests))
+
+                #print(tester.solver_with_info(num_tests*2))
 
                 print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
-                torch.save(agent.online.state_dict(), "./layer_5_adam_wild_cum_stop_v2")
+                torch.save(agent.online.state_dict(), "./layer_25TO20")
                 print("saved")
 
                 #if alpha_update_frequency[0]:
@@ -636,7 +649,7 @@ class Test:
                 one_hot_code(cube)).to(self.device)))
 
             if cube != SOLVED_CUBE:
-                None
+                None    
             else:
                 self.win_counter += 1
                 break
@@ -684,6 +697,24 @@ class Test:
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}, \n gen acts = {self.gen_trajectory_act_list} \n win acts = {self.win_act_occ_list} \n all acts = {self.act_occ_list}"
 
 
+    def max_mover_solve(self, number_of_tests=1000, modifier = 10):
+        cube = self.generator.generate_cube(self.move_depth)
+        for _ in range(self.move_depth*modifier):
+            cube(self.get_action(torch.from_numpy(
+                one_hot_code(cube)).to(self.device)))
+
+            if cube != SOLVED_CUBE:
+                None    
+            else:
+                self.win_counter += 1
+                break
+
+    def max_mover_solver(self, number_of_tests=1000, modifier = 10):
+        self.win_counter = 0
+        for _ in range(number_of_tests):
+            self.max_mover_solve(number_of_tests, modifier)
+        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
+
 ######################################################################################################################################################################################
 
 """
@@ -715,15 +746,15 @@ print(device)
 
 # Initialize model
 #online = Model([288], [288, 144, 144, 144, 144, 72, 72], [12], dropout_rate=0.0).to(device)  # online = Model([288], [144, 72, 36, 18], [12]).to(device)
-online = Model([288], [288, 288, 144, 144, 72, 72], [12]).to(device)
+online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./layer_5_adam_vv2")
-online.load_state_dict(param)
+#param = torch.load("./layer_4444")
+#online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-09, device=device, adam=True)
+agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -736,24 +767,27 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 3
+t_depth = 5
 test = Test(t_depth, agent.online, agent.device)
 
 
 # print mass test results
-#print(test.solver_with_info(500))
+print(test.solver_with_info(500))
+#print(test.max_mover_solver(5000, 30))
+
+#exit(0)
 
 agent.online.train()
 
 
 # start learning and define parameters to learn based on
 agent.learn(
-    replay_time=0,
+    replay_time=50_000,
     replay_shuffle_range=t_depth,
-    replay_chance=0.02,
+    replay_chance=0.4,
     n_steps=4,
-    epoch_time=1_000,
-    epochs=100, 
+    epoch_time=2_000,
+    epochs=1_000, 
     test=True, 
     alpha_update_frequency=(False, 4),)
 
@@ -770,16 +804,15 @@ print(f"before\n{before} vs after\n{after}")
 tester1 = Test(1, agent.online, agent.device)
 tester2 = Test(2, agent.online, agent.device)
 tester3 = Test(3, agent.online, agent.device)
-#tester4 = Test(4, agent.online, agent.device)
+tester4 = Test(4, agent.online, agent.device)
 
 print(tester1.solver_with_info(1000))
 print(tester2.solver_with_info(1000))
 print(tester3.solver_with_info(1000))
-#print(tester4.solver_with_info(1000))
+print(tester4.solver_with_info(1000))
+print(test.solver_with_info(1000))
 
-print(test.solver_with_info(5000))
-
-torch.save(agent.online.state_dict(), "./layer_5_adam_vv2")
+torch.save(agent.online.state_dict(), "./masseive_model")
 
 #print differnce in weights and bias'
 post_param = agent.online.state_dict()
