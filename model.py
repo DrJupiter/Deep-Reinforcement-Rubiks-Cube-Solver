@@ -753,7 +753,7 @@ while True:
 exit(0)
 """
 #####################################################################################################################################################################################
-def generate_tests(depth: int, network, device) -> List[Test]:
+def generate_tests(depth: int, network, device):
     tests = []
     for i in range(1, depth+1):
         tests.append(Test(i, network, device))
@@ -768,11 +768,9 @@ param = torch.load("./Test_model")
 online.load_state_dict(param)
 online.eval()
 
-#agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
-
 tests = generate_tests(10, online, device)
 for test in tests:
-    print(test.confidence_interval_99(100_000))
+    print(test.move_depth, test.confidence_interval_99(100_000))
 
 
 exit(0)
