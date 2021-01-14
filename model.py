@@ -491,7 +491,7 @@ class Agent:
                 #print(tester.solver_with_info(num_tests*2))
 
                 print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
-                torch.save(agent.online.state_dict(), "./layer_25TO20")
+                torch.save(agent.online.state_dict(), "./layer_25TO20_v2")
                 print("saved")
 
                 #if alpha_update_frequency[0]:
@@ -749,8 +749,8 @@ print(device)
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-#param = torch.load("./layer_4444")
-#online.load_state_dict(param)
+param = torch.load("./layer_25TO20")
+online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
@@ -812,7 +812,7 @@ print(tester3.solver_with_info(1000))
 print(tester4.solver_with_info(1000))
 print(test.solver_with_info(1000))
 
-torch.save(agent.online.state_dict(), "./masseive_model")
+torch.save(agent.online.state_dict(), "./layer_25TO20_vv2")
 
 #print differnce in weights and bias'
 post_param = agent.online.state_dict()
