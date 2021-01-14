@@ -4,6 +4,7 @@ from copy import deepcopy
 from collections import deque
 import numpy as np
 import pycuber as pc
+import math
 
 from main import one_hot_code, cube_shuffle, ACTIONS, SOLVED_CUBE
 
@@ -491,7 +492,7 @@ class Agent:
                 #print(tester.solver_with_info(num_tests*2))
 
                 print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
-                torch.save(agent.online.state_dict(), "./layer_25TO20_v2")
+                torch.save(agent.online.state_dict(), "./layer_25TO20_v22")
                 print("saved")
 
                 #if alpha_update_frequency[0]:
@@ -715,6 +716,19 @@ class Test:
             self.max_mover_solve(number_of_tests, modifier)
         return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
 
+
+    def confidence_interval_99(self, number_of_tests):
+        z = 2.576
+        
+        self.solver(number_of_tests)
+        mean = self.win_counter/number_of_tests 
+        p1 = (1-mean)**2 * self.win_counter
+        p0 = (0-mean)**2 * (number_of_tests-self.win_counter)
+        mse = 1/(number_of_tests-1) * (p1+p0)
+        std = math.sqrt(mse)
+        return (mean, mean - z * std/math.sqrt(number_of_tests), mean + z * std/math.sqrt(number_of_tests)) 
+
+    
 ######################################################################################################################################################################################
 
 """
@@ -738,6 +752,31 @@ while True:
 
 exit(0)
 """
+#####################################################################################################################################################################################
+def generate_tests(depth: int, network, device) -> List[Test]:
+    tests = []
+    for i in range(1, depth+1):
+        tests.append(Test(i, network, device))
+    return tests
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+
+online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
+
+param = torch.load("./Test_model")
+online.load_state_dict(param)
+online.eval()
+
+#agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
+
+tests = generate_tests(10, online, device)
+for test in tests:
+    print(test.confidence_interval_99(100_000))
+
+
+exit(0)
+
 ######################################################################################################################################################################################
 
 # choose and print optimal device
@@ -749,7 +788,7 @@ print(device)
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./layer_25TO20")
+param = torch.load("./Test_model")
 online.load_state_dict(param)
 online.eval()  # online.train()
 
@@ -772,15 +811,16 @@ test = Test(t_depth, agent.online, agent.device)
 
 
 # print mass test results
-print(test.solver_with_info(500))
-#print(test.max_mover_solver(5000, 30))
+#print(test.solver_with_info(5000))
+print(test.max_mover_solver(5000, 30))
 
-#exit(0)
+exit(0)
 
 agent.online.train()
 
 
 # start learning and define parameters to learn based on
+
 agent.learn(
     replay_time=50_000,
     replay_shuffle_range=t_depth,
@@ -806,18 +846,18 @@ tester2 = Test(2, agent.online, agent.device)
 tester3 = Test(3, agent.online, agent.device)
 tester4 = Test(4, agent.online, agent.device)
 
-print(tester1.solver_with_info(1000))
-print(tester2.solver_with_info(1000))
-print(tester3.solver_with_info(1000))
-print(tester4.solver_with_info(1000))
-print(test.solver_with_info(1000))
+print(tester1.solver_with_info(5000))
+print(tester2.solver_with_info(5000))
+print(tester3.solver_with_info(5000))
+print(tester4.solver_with_info(5000))
+print(test.solver_with_info(5000))
 
-torch.save(agent.online.state_dict(), "./layer_25TO20_vv2")
+#torch.save(agent.online.state_dict(), "./layer_25TO20_vv2")
 
 #print differnce in weights and bias'
-post_param = agent.online.state_dict()
-for p in param:
-    print(param[p]-post_param[p])
+#post_param = agent.online.state_dict()
+#for p in param:
+#    print(param[p]-post_param[p])
 
 
 exit(0)
