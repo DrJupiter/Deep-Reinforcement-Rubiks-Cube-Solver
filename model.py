@@ -753,9 +753,9 @@ while True:
 exit(0)
 """
 #####################################################################################################################################################################################
-def generate_tests(depth: int, network, device):
+def generate_tests(start: int, depth: int, network, device):
     tests = []
-    for i in range(1, depth+1):
+    for i in range(start, depth+1):
         tests.append(Test(i, network, device))
     return tests
 
@@ -768,8 +768,8 @@ param = torch.load("./Test_model")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(10, online, device)
-for test in tests:
+tests = generate_tests(7, 10, online, device)
+for test in reversed(tests):
     print(test.move_depth, test.confidence_interval_99(100_000))
 
 
