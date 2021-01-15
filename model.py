@@ -310,20 +310,20 @@ class Agent:
 
                             reward, reward_vector = self.experience_reward(ACTIONS[act], correct_act)
 
-                            #TD = reward + self.gamma * val_target - val_online
+                            TD = self.gamma * val_target - val_online
 
                             loss = table_online - reward_vector
                             
                             # -factor, because the step is taken in the direction of -step_size * factor
                             # and we want a step towards the steepest ascent
-                            # self.update_online_adam(loss, factor=-TD)
+                            self.update_online_adam(loss, factor=-TD)
                             
                             #self.update_online_adam(loss)
                             
-                            self.online.network.zero_grad()
+                            #self.online.network.zero_grad()
 
-                            loss.backward(loss)
-                            optimizer.step()
+                            #loss.backward(loss)
+                            #optimizer.step()
 
                             cube(correct_act)
 
@@ -359,7 +359,7 @@ class Agent:
 
                     # We need to generate a random state here
                     # We also need to one-hot-code the state before we pass it as input
-                    depth = np.random.randint(3, replay_shuffle_range + 1)
+                    depth = np.random.randint(replay_shuffle_range + 1)
                     cube = generator.generate_cube(depth)
 
                     TD = 0
@@ -385,7 +385,7 @@ class Agent:
 
                         if not (cube != SOLVED_CUBE):
                             solved = True
-                            self.update_online_adam(loss, factor= - (TD * 10))
+                            self.update_online_adam(loss, factor= - (TD - 0.5 * (i+1)))
                             #print(f"TD_sum = {TD}")
                             #optimizer.step()
                             self.online.network.zero_grad()
@@ -395,10 +395,10 @@ class Agent:
                     
                     if solved is False:
                         #optimizer.step()
-                        self.update_online_adam(loss, factor=0)
+                        self.adam_optim.step(factor=0.1)
                         couldnt_solve += 1
                         #print("couldnt solve")
-                        self.online.network.zero_grad()
+                        #self.online.network.zero_grad()
 
                     """
                     acc = 0
@@ -492,7 +492,7 @@ class Agent:
                 #print(tester.solver_with_info(num_tests*2))
 
                 print(self.online(torch.from_numpy(one_hot_code(generator.generate_cube(replay_shuffle_range))).to(self.device))) 
-                torch.save(agent.online.state_dict(), "./layer_25TO20_v22")
+                torch.save(agent.online.state_dict(), "./Long_train_break")
                 print("saved")
 
                 #if alpha_update_frequency[0]:
@@ -753,6 +753,7 @@ while True:
 exit(0)
 """
 #####################################################################################################################################################################################
+"""
 def generate_tests(start: int, depth: int, network, device):
     tests = []
     for i in range(start, depth+1):
@@ -768,13 +769,13 @@ param = torch.load("./Test_model")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(7, 10, online, device)
+tests = generate_tests(7, 7, online, device)
 for test in reversed(tests):
     print(test.move_depth, test.confidence_interval_99(100_000))
 
 
 exit(0)
-
+"""
 ######################################################################################################################################################################################
 
 # choose and print optimal device
@@ -786,8 +787,8 @@ print(device)
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./Test_model")
-online.load_state_dict(param)
+#param = torch.load("./Test_model")
+#online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
@@ -810,9 +811,9 @@ test = Test(t_depth, agent.online, agent.device)
 
 # print mass test results
 #print(test.solver_with_info(5000))
-print(test.max_mover_solver(5000, 30))
+#print(test.max_mover_solver(5000, 30))
 
-exit(0)
+#exit(0)
 
 agent.online.train()
 
@@ -825,7 +826,7 @@ agent.learn(
     replay_chance=0.4,
     n_steps=4,
     epoch_time=2_000,
-    epochs=1_000, 
+    epochs=5_000, 
     test=True, 
     alpha_update_frequency=(False, 4),)
 
@@ -850,7 +851,7 @@ print(tester3.solver_with_info(5000))
 print(tester4.solver_with_info(5000))
 print(test.solver_with_info(5000))
 
-#torch.save(agent.online.state_dict(), "./layer_25TO20_vv2")
+torch.save(agent.online.state_dict(), "./Long_train_v2")
 
 #print differnce in weights and bias'
 #post_param = agent.online.state_dict()
