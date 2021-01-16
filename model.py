@@ -753,7 +753,7 @@ while True:
 exit(0)
 """
 #####################################################################################################################################################################################
-"""
+
 def generate_tests(start: int, depth: int, network, device):
     tests = []
     for i in range(start, depth+1):
@@ -765,17 +765,17 @@ print(device)
 
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
-param = torch.load("./Test_model")
+param = torch.load("./Long_train_break_98_on_3")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(7, 7, online, device)
+tests = generate_tests(30, 30, online, device)
 for test in reversed(tests):
-    print(test.move_depth, test.confidence_interval_99(100_000))
+    print(test.move_depth, test.confidence_interval_99(1_000))
 
 
 exit(0)
-"""
+
 ######################################################################################################################################################################################
 
 # choose and print optimal device
@@ -792,7 +792,7 @@ online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 14
 online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-06, device=device, adam=True)
+agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
