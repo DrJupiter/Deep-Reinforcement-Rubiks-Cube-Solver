@@ -262,8 +262,9 @@ class Agent:
             tester2 = Test(2, self.online, self.device)
             tester3 = Test(3, self.online, self.device)
             tester4 = Test(4, self.online, self.device)
-            tester20 = Test(20, self.online, self.device)
-            
+            tester5 = Test(5, self.online, self.device)
+            tester6 = Test(6, self.online, self.device)
+
             tester = Test(replay_shuffle_range, self.online, self.device)
         else:
             tester = None
@@ -487,6 +488,10 @@ class Agent:
                 print(tester2.solver_with_info(num_tests))
                 print(tester3.solver_with_info(num_tests))
                 print(tester4.solver_with_info(num_tests))
+                print(tester5.solver_with_info(num_tests))
+                print(tester6.solver_with_info(num_tests))
+
+
                 #print(tester20.solver_with_info(num_tests))
 
                 #print(tester.solver_with_info(num_tests*2))
@@ -753,7 +758,7 @@ while True:
 exit(0)
 """
 #####################################################################################################################################################################################
-
+"""
 def generate_tests(start: int, depth: int, network, device):
     tests = []
     for i in range(start, depth+1):
@@ -775,7 +780,7 @@ for test in reversed(tests):
 
 
 exit(0)
-
+"""
 ######################################################################################################################################################################################
 
 # choose and print optimal device
@@ -787,12 +792,12 @@ print(device)
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-#param = torch.load("./Test_model")
-#online.load_state_dict(param)
+param = torch.load("./Long_train_break_last_before_SD")
+online.load_state_dict(param)
 online.eval()  # online.train()
 
 # define agent variables
-agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
+agent = Agent(online, ACTIONS, alpha=1e-08, device=device, adam=True)
 
 # define and mutate test cube to show example of weigts
 cube = pc.Cube()
@@ -805,7 +810,7 @@ input = torch.from_numpy(one_hot_code(cube)).to(device)
 before = agent.online(input)
 
 # define mass test parameters
-t_depth = 5
+t_depth = 6
 test = Test(t_depth, agent.online, agent.device)
 
 
@@ -821,12 +826,12 @@ agent.online.train()
 # start learning and define parameters to learn based on
 
 agent.learn(
-    replay_time=50_000,
+    replay_time=1_000,
     replay_shuffle_range=t_depth,
     replay_chance=0.4,
     n_steps=4,
     epoch_time=2_000,
-    epochs=5_000, 
+    epochs=2_000, 
     test=True, 
     alpha_update_frequency=(False, 4),)
 
