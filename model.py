@@ -749,10 +749,9 @@ online.load_state_dict(param)
 online.eval()
 
 tests = generate_tests(8, 10, online, device)
-print(tests)
 
 for test in reversed(tests):
-    print(test.move_depth, test.confidence_interval_99(1_000))
+    print(test.move_depth, test.confidence_interval_99(100_000))
 
 
 exit(0)
