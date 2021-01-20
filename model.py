@@ -768,7 +768,7 @@ param = torch.load("./Test_model")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(7, 10, online, device)
+tests = generate_tests(6, 6, online, device)
 for test in reversed(tests):
     print(test.move_depth, test.confidence_interval_99(100_000))
 
