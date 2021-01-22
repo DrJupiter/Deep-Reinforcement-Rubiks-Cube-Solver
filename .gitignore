@@ -132,3 +132,5 @@ dmypy.json
 tmp.py
 .vscode/
 layer*
+usefull_snippets.py
+user_input.py

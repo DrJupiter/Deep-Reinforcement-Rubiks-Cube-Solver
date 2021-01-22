@@ -1,9 +1,12 @@
+# All code in this file is liscenced under the MIT liscence.
+
+
 import math
 import torch
 from torch import Tensor
 from typing import List
 
-
+# A slightly modified version of: https://github.com/pytorch/pytorch/blob/c7d348fea6ff4e20722256b38981c9c1f8727d95/torch/optim/functional.py#L53
 def adam(params: List[Tensor],
          grads: List[Tensor],
          exp_avgs: List[Tensor],
@@ -56,6 +59,7 @@ def adam(params: List[Tensor],
 from torch.optim import Optimizer
 
 
+# A slightly modified version of https://github.com/pytorch/pytorch/blob/master/torch/optim/adam.py
 class AdamMul(Optimizer):
     r"""Implements Adam algorithm.
 

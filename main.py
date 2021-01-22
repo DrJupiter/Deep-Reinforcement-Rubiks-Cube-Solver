@@ -45,8 +45,7 @@ def one_hot_code(cube):
                 # one_hot.append(tile)
 
     middle = np.array([4, 13, 22, 31, 40, 49])
-#    one_hot = np.array(one_hot)
-#    one_hot = np.delete(one_hot, middle, axis=0)
+
     return np.delete(np.array(one_hot), middle, axis=0).flatten()
 
 
@@ -56,9 +55,6 @@ def test_target_middle(cube):
         side = cube.get_face(face)
         side[1][1] = "white"
         print(side)
-
-# print(len(one_hot_code(SOLVED_CUBE)))
-
 
 ACTIONS_NUM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
@@ -89,7 +85,6 @@ def cube_shuffle(n):
             if new_action == True:
                 act_list.append(act)
 
-    return np.array(act_list[4:])  # , err
+    return np.array(act_list[4:])  
 
 
-# def find_state(move_list, val_of_wanted_state):
