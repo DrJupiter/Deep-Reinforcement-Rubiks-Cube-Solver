@@ -566,7 +566,7 @@ class Test:
 
     
 #####################################################################################################################################################################################
-"""
+
 def generate_tests(start: int, depth: int, network, device):
     tests = []
     for i in range(start, depth+1):
@@ -578,17 +578,17 @@ print(device)
 
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
-param = torch.load("./Long_train_break_97_on_4")
+param = torch.load("./Long_train_plus_break_modi_end")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(1, 7, online, device)
+tests = generate_tests(9, 10, online, device)
 for test in reversed(tests):
     print(test.move_depth, test.confidence_interval_99(100_000))
 
 
 exit(0)
-"""
+
 ######################################################################################################################################################################################
 
 # choose and print optimal device
