@@ -497,8 +497,18 @@ class Test:
     def solver(self, number_of_tests=100):
         self.win_counter = 0
         for _ in range(number_of_tests):
+            pre = time.perf_counter()
             self.solve()
-        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}"
+        return f"{(self.win_counter/number_of_tests) * 100}% of test-cubes solved over {number_of_tests} tests at {self.move_depth} depth, wins = {self.win_counter}", time_lis
+
+    def time_solver(self, number_of_tests=100):
+        self.win_counter = 0
+        time_lis = np.zeros(number_of_tests)
+        for _ in range(number_of_tests):
+            pre = time.perf_counter()
+            self.solve()
+            time_lis[_]=time.perf_counter()-pre
+        return self.win_counter, time_lis
 
     def solve_with_info(self):
         cube, get_gen_trajectory_act_list = self.generator.generate_cube_with_info(self.move_depth)
@@ -577,14 +587,28 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
+agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
 
-param = torch.load("./Long_train_plus_break_modi_end")
+param = torch.load("./Long_train_plus_break_modi")
 online.load_state_dict(param)
 online.eval()
 
-tests = generate_tests(9, 10, online, device)
-for test in reversed(tests):
-    print(test.move_depth, test.confidence_interval_99(100_000))
+test = Test(10, agent.online, agent.device)
+import time
+pre = time.perf_counter()
+
+tests = generate_tests(20, 20, online, device)
+winrate, time_list = test.time_solver(10_000)
+print(np.mean(time_list), 1.96*np.std(time_list))
+
+#for test in reversed(tests):
+    #print(test.move_depth, test.confidence_interval_99(10_000))
+
+
+print(time.perf_counter()-pre)
+
+
+
 
 
 exit(0)
