@@ -1,6 +1,11 @@
 # Deep-Reinforcement-Rubiks-Cube-Solver
 A Rubik's cube solver utilizing Double Deep Q-Reinforcement Learning
 
+
+# Demo
+
+![](/preview/demo.mp4)
+
 # Implementation
 
 We have 2 networks; an online- and a targetnetwork.

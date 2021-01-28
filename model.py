@@ -12,6 +12,8 @@ from enum import Enum, unique
 
 from adam_mul import AdamMul
 
+import time
+import sys
 
 def mlp_dropout(sizes, activation=nn.PReLU(init=1), output_activation=None, p=0.0):
     # Build a feedforward neural network.
@@ -574,7 +576,23 @@ class Test:
         std = math.sqrt(mse)
         return (mean, mean - z * std/math.sqrt(number_of_tests), mean + z * std/math.sqrt(number_of_tests)) 
 
-    
+    def visual(self):
+       cube = self.generator.generate_cube(self.move_depth)
+       print(chr(27) + "[1J")
+       print(f"Shuffled cube at depth level {self.move_depth}:\n{repr(cube)}")
+       time.sleep(2)
+       print("Solving cube")
+       for _ in range(self.move_depth):
+           print(repr(cube(self.get_action(torch.from_numpy(one_hot_code(cube)).to(self.device)))))
+           time.sleep(1)
+       #shuffled_cube = cube.copy()
+       #n = 8
+       #for _ in range(self.move_depth):
+       #     print(chr(27) + "[1J")
+       #     print(f"Solving cube at depth level {self.move_depth}")
+       #     print("From\n{}\n{}{}\\/\nTo\n{}".format(shuffled_cube.__repr__(),f"{' '*n}||\n"*n,' '*n, repr(cube(self.get_action(torch.from_numpy(one_hot_code(cube)).to(self.device))))))
+       #     time.sleep(1)
+
 #####################################################################################################################################################################################
 
 def generate_tests(start: int, depth: int, network, device):
@@ -583,15 +601,26 @@ def generate_tests(start: int, depth: int, network, device):
         tests.append(Test(i, network, device))
     return tests
 
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
-agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
 
 param = torch.load("./Long_train_plus_break_modi")
 online.load_state_dict(param)
 online.eval()
+
+tests = generate_tests(int(sys.argv[1]), int(sys.argv[2]), online, device)
+for depth, test in enumerate(tests):
+#    print(f"Solving cube at depth level {depth+int(sys.argv[1])}")
+    time.sleep(1)
+    test.visual()
+
+exit(0)
+
+agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
 
 test = Test(10, agent.online, agent.device)
 import time
