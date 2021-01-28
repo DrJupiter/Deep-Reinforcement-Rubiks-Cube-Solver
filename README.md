@@ -4,7 +4,7 @@ A Rubik's cube solver utilizing Double Deep Q-Reinforcement Learning
 
 # Demo
 
-![](/preview/demo.mp4)
+![](./preview/output2.gif)
 
 # Implementation
 
