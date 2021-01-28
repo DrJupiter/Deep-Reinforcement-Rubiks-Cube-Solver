@@ -603,44 +603,44 @@ def generate_tests(start: int, depth: int, network, device):
 
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-
-online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
-
-param = torch.load("./Long_train_plus_break_modi")
-online.load_state_dict(param)
-online.eval()
-
-tests = generate_tests(int(sys.argv[1]), int(sys.argv[2]), online, device)
-for depth, test in enumerate(tests):
-#    print(f"Solving cube at depth level {depth+int(sys.argv[1])}")
-    time.sleep(1)
-    test.visual()
-
-exit(0)
-
-agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
-
-test = Test(10, agent.online, agent.device)
-import time
-pre = time.perf_counter()
-
-tests = generate_tests(20, 20, online, device)
-winrate, time_list = test.time_solver(10_000)
-print(np.mean(time_list), 1.96*np.std(time_list))
-
-#for test in reversed(tests):
-    #print(test.move_depth, test.confidence_interval_99(10_000))
-
-
-print(time.perf_counter()-pre)
-
-
-
-
-
-exit(0)
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#print(device)
+#
+#online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
+#
+#param = torch.load("./Long_train_plus_break_modi")
+#online.load_state_dict(param)
+#online.eval()
+#
+#tests = generate_tests(int(sys.argv[1]), int(sys.argv[2]), online, device)
+#for depth, test in enumerate(tests):
+##    print(f"Solving cube at depth level {depth+int(sys.argv[1])}")
+#    time.sleep(1)
+#    test.visual()
+#
+#exit(0)
+#
+#agent = Agent(online, ACTIONS, alpha=1e-05, device=device, adam=True)
+#
+#test = Test(10, agent.online, agent.device)
+#import time
+#pre = time.perf_counter()
+#
+#tests = generate_tests(20, 20, online, device)
+#winrate, time_list = test.time_solver(10_000)
+#print(np.mean(time_list), 1.96*np.std(time_list))
+#
+##for test in reversed(tests):
+#    #print(test.move_depth, test.confidence_interval_99(10_000))
+#
+#
+#print(time.perf_counter()-pre)
+#
+#
+#
+#
+#
+#exit(0)
 
 ######################################################################################################################################################################################
 
@@ -652,7 +652,7 @@ print(device)
 online = Model([288], [288, 288, 288, 288, 288, 288, 144, 144, 144, 144, 144, 144, 72, 72], [12]).to(device)
 
 # load model
-param = torch.load("./Long_train_plus_break")
+param = torch.load("./preview_model")
 online.load_state_dict(param)
 online.eval()  # online.train()
 
