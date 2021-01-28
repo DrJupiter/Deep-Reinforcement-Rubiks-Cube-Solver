@@ -1,8 +1,0 @@
-Required for running openmpi
-
-	sudo apt-get update && sudo apt-get install libopenmpi-dev openmpi-doc
-
-Required for compiling spinningup from https://github.com/openai/spinningup
-
-	sudo apt install swig
-
