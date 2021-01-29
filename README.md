@@ -2,7 +2,7 @@
 A Rubik's cube solver utilizing Double Deep Q-Reinforcement Learning
 
 
-# Demo of preview model 
+# Demo of the preview model 
 
 ![](./preview/output2.gif)
 
